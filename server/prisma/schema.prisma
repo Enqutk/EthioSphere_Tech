@@ -22,6 +22,7 @@ model User {
   rank          Rank      @default(NEWBIE)
   githubUrl     String?   @map("github_url")
   skills        String[]  @default([]) // e.g. ["React", "Node.js"]
+  isAdmin       Boolean   @default(false) @map("is_admin")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
@@ -32,6 +33,11 @@ model User {
   comments        Comment[]
   challengeSubs   ChallengeSubmission[]
   badges          UserBadge[]
+  dmThreads1      DmThread[]      @relation("DmThreadUser1")
+  dmThreads2      DmThread[]      @relation("DmThreadUser2")
+  dmMessagesSent  DmMessage[]
+  followsOutgoing Follow[]        @relation("FollowFollower")
+  followsIncoming Follow[]        @relation("FollowFollowee")
 }
 
 enum Rank {
@@ -39,6 +45,49 @@ enum Rank {
   JUNIOR_DEV
   PRO_DEV
   ELITE_ARCHITECT
+}
+
+model Follow {
+  id          String       @id @default(cuid())
+  followerId  String       @map("follower_id")
+  followingId String       @map("following_id")
+  status      FollowStatus @default(PENDING)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  follower    User         @relation("FollowFollower", fields: [followerId], references: [id], onDelete: Cascade)
+  followee    User         @relation("FollowFollowee", fields: [followingId], references: [id], onDelete: Cascade)
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+enum FollowStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model DmThread {
+  id        String   @id @default(cuid())
+  user1Id   String   @map("user1_id")
+  user2Id   String   @map("user2_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user1     User     @relation("DmThreadUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2     User     @relation("DmThreadUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+  messages  DmMessage[]
+  @@unique([user1Id, user2Id])
+  @@map("dm_threads")
+}
+
+model DmMessage {
+  id        String    @id @default(cuid())
+  threadId  String    @map("thread_id")
+  senderId  String    @map("sender_id")
+  body      String    @db.VarChar(8000)
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  thread    DmThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender    User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  @@map("dm_messages")
 }
 
 model UserBadge {
@@ -53,17 +102,31 @@ model UserBadge {
 
 // --- Projects (Playground) ---
 model Project {
-  id          String        @id @default(cuid())
-  title       String
-  description String
-  status      ProjectStatus @default(PLANNING)
-  type        ProjectType   @default(LEARNING)
-  ownerId     String        @map("owner_id")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  id              String             @id @default(cuid())
+  title           String
+  description     String
+  status          ProjectStatus      @default(PLANNING)
+  type            ProjectType      @default(LEARNING)
+  visibility      ProjectVisibility  @default(PUBLIC) @map("visibility")
+  seekingReview   Boolean            @default(false) @map("seeking_review")
+  ownerId         String             @map("owner_id")
+  // GitHub: canonical repo URL, owner/repo, cached JSON (repo, languages, readme, contributors)
+  githubHtmlUrl   String?            @map("github_html_url")
+  githubFullName  String?            @map("github_full_name")
+  githubData      Json?              @map("github_data")
+  githubSyncedAt  DateTime?          @map("github_synced_at")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
 
   owner   User            @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members ProjectMember[]
+  posts   Post[]
+}
+
+enum ProjectVisibility {
+  PUBLIC
+  FOLLOWERS_ONLY
+  PRIVATE
 }
 
 enum ProjectStatus {
@@ -94,14 +157,17 @@ model ProjectMember {
 
 // --- Challenges ---
 model Challenge {
-  id           String         @id @default(cuid())
-  title        String
-  description  String
-  difficulty   ChallengeDifficulty @default(MEDIUM)
-  rewardPoints Int            @default(0) @map("reward_points")
-  active       Boolean        @default(true)
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
+  id                   String              @id @default(cuid())
+  title                String
+  description          String
+  difficulty           ChallengeDifficulty @default(MEDIUM)
+  rewardPoints         Int                 @default(0) @map("reward_points")
+  active               Boolean             @default(true)
+  // Optional window: before closesAt, only your own submission is visible; after closesAt, all solutions appear in timeline order.
+  submissionOpensAt    DateTime?           @map("submission_opens_at")
+  submissionClosesAt   DateTime?           @map("submission_closes_at")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
 
   submissions ChallengeSubmission[]
 }
@@ -135,6 +201,7 @@ model Post {
   body            String
   section         PostSection @default(GENERAL)
   authorId        String      @map("author_id")
+  projectId       String?     @map("project_id")
   solved          Boolean     @default(false)
   repoUrl         String?     @map("repo_url")
   repoFullName    String?     @map("repo_full_name")
@@ -144,6 +211,7 @@ model Post {
   updatedAt       DateTime    @updatedAt @map("updated_at")
 
   author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  project  Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
   votes    PostVote[]
   comments Comment[]
 }
