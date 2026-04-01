@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { adminApi, postsApi } from '@/lib/api';
 import { useAuth, getStoredToken } from '@/components/AuthProvider';
+import { FollowCreatorActions } from '@/components/FollowCreatorActions';
 
 type Post = {
   id: string;
@@ -75,6 +76,7 @@ export default function CommunityPost() {
         <h1 className="mt-2 font-mono text-2xl font-semibold text-slate-100">{post.title}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-400">
           <Link to={`/profile/${post.author.username}`} className="hover:text-brand-400">@{post.author.username}</Link>
+          <FollowCreatorActions username={post.author.username} userId={post.author.id} />
           {post.solved && <span className="text-green-400">Solved</span>}
           {user?.isAdmin && (
             <button type="button" onClick={handleAdminDeletePost} className="text-red-400 hover:underline">
