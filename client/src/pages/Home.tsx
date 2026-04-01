@@ -1,8 +1,11 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 
 export default function Home() {
   const { user, ready } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const banner = (location.state as { banner?: string } | null)?.banner;
   const profileHref = user ? `/profile/${user.username.toLowerCase()}` : '/register';
 
   const featureCards = [
@@ -20,6 +23,18 @@ export default function Home() {
   return (
     <div className="relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(6,182,212,0.15),transparent)]" />
+      {banner && (
+        <div className="relative border-b border-amber-500/30 bg-amber-500/10 px-4 py-3 text-center text-sm text-amber-100">
+          <span>{banner}</span>
+          <button
+            type="button"
+            className="ml-3 text-amber-300 underline hover:text-amber-100"
+            onClick={() => navigate('/', { replace: true, state: {} })}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       <section className="relative mx-auto max-w-6xl px-6 py-24 text-center md:py-32">
         <h1 className="font-mono text-4xl font-bold tracking-tight text-slate-100 md:text-6xl">
           <span className="text-brand-400">Programmers</span> World
