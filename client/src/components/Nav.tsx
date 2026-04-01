@@ -1,10 +1,16 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 
 export function Nav() {
   const location = useLocation();
+  const navigate = useNavigate();
   const pathname = location.pathname;
   const { user, logout, ready } = useAuth();
+
+  function handleLogout() {
+    logout();
+    navigate('/login', { replace: true, state: { signedOut: true } });
+  }
 
   const navLink = (href: string, label: string) => (
     <Link
@@ -30,10 +36,12 @@ export function Nav() {
           {ready && (
             user ? (
               <>
+                {navLink('/inbox', 'Inbox')}
+                {user.isAdmin ? navLink('/admin', 'Admin') : null}
                 <Link to={`/profile/${user.username.toLowerCase()}`} className="rounded-lg px-3 py-2 text-sm text-slate-400 hover:text-slate-200">
                   {user.name}
                 </Link>
-                <button type="button" onClick={logout} className="btn-secondary ml-2 text-sm">
+                <button type="button" onClick={handleLogout} className="btn-secondary ml-2 text-sm">
                   Log out
                 </button>
               </>
