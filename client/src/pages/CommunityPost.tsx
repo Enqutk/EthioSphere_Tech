@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { postsApi } from '@/lib/api';
-import { useAuth } from '@/components/AuthProvider';
-import { getStoredToken } from '@/components/AuthProvider';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { adminApi, postsApi } from '@/lib/api';
+import { useAuth, getStoredToken } from '@/components/AuthProvider';
 
 type Post = {
   id: string;
@@ -14,6 +13,7 @@ type Post = {
   repoFullName?: string | null;
   repoPublic?: boolean | null;
   repoDescription?: string | null;
+  project?: { id: string; title: string; githubFullName?: string | null } | null;
   author: { id: string; name: string; username: string; avatarUrl?: string | null };
   comments: { id: string; body: string; isSolution: boolean; author: { id: string; name: string; username: string }; createdAt: string }[];
 };
@@ -25,6 +25,7 @@ const SECTIONS: Record<string, string> = {
 
 export default function CommunityPost() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,6 +52,18 @@ export default function CommunityPost() {
     }
   }
 
+  async function handleAdminDeletePost() {
+    const token = getStoredToken();
+    if (!token || !id || !user?.isAdmin) return;
+    if (!confirm('Delete this post for everyone?')) return;
+    try {
+      await adminApi.deletePost(token, id);
+      navigate('/community', { replace: true });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not delete');
+    }
+  }
+
   if (loading) return <div className="mx-auto max-w-3xl px-6 py-16 text-center text-slate-400">Loading…</div>;
   if (!post) return <div className="mx-auto max-w-3xl px-6 py-16 text-center text-red-400">Post not found</div>;
 
@@ -60,11 +73,25 @@ export default function CommunityPost() {
       <div className="card mt-4 p-8">
         <span className="text-xs text-slate-500">{SECTIONS[post.section] ?? post.section}</span>
         <h1 className="mt-2 font-mono text-2xl font-semibold text-slate-100">{post.title}</h1>
-        <div className="mt-2 flex items-center gap-2 text-sm text-slate-400">
+        <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-400">
           <Link to={`/profile/${post.author.username}`} className="hover:text-brand-400">@{post.author.username}</Link>
           {post.solved && <span className="text-green-400">Solved</span>}
+          {user?.isAdmin && (
+            <button type="button" onClick={handleAdminDeletePost} className="text-red-400 hover:underline">
+              Delete post (admin)
+            </button>
+          )}
         </div>
         <p className="mt-6 whitespace-pre-wrap text-slate-300">{post.body}</p>
+        {post.project && (
+          <div className="mt-6 rounded-lg border border-slate-600/80 bg-surface-900/50 p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Playground project</p>
+            <Link to={`/projects/${post.project.id}`} className="mt-1 inline-block font-mono text-sm text-brand-400 hover:underline">
+              {post.project.title}
+              {post.project.githubFullName ? ` · ${post.project.githubFullName}` : ''} →
+            </Link>
+          </div>
+        )}
         {post.repoPublic && post.repoUrl && post.repoFullName && (
           <div className="mt-6 rounded-lg border border-brand-500/30 bg-brand-500/5 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-brand-400">Public repository</p>
