@@ -31,6 +31,7 @@ export function Nav() {
         </Link>
         <nav className="flex items-center gap-1">
           {navLink('/projects', 'Projects')}
+          {navLink('/buddies', 'Buddies')}
           {navLink('/challenges', 'Challenges')}
           {navLink('/community', 'Community')}
           {ready && (
