@@ -16,6 +16,7 @@ export default function CommunityNew() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [section, setSection] = useState('GENERAL');
+  const [repoUrl, setRepoUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -31,7 +32,12 @@ export default function CommunityNew() {
     setLoading(true);
     setError('');
     try {
-      const post = await postsApi.create(token, { title, body, section });
+      const post = await postsApi.create(token, {
+        title,
+        body,
+        section,
+        ...(repoUrl.trim() ? { repoUrl: repoUrl.trim() } : {}),
+      });
       navigate(`/community/${(post as { id: string }).id}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create post');
@@ -44,7 +50,7 @@ export default function CommunityNew() {
     <div className="mx-auto max-w-xl px-6 py-12">
       <Link to="/community" className="text-sm text-slate-400 hover:text-brand-400">← Back to community</Link>
       <h1 className="mt-4 font-mono text-2xl font-semibold text-slate-100">New post</h1>
-      <p className="mt-2 text-slate-400">Start a discussion or ask for help.</p>
+      <p className="mt-2 text-slate-400">Start a discussion, ask for collab, or link a public repo for context.</p>
       <form onSubmit={handleSubmit} className="mt-8 space-y-5">
         {error && <div className="rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div>}
         <div>
@@ -60,6 +66,20 @@ export default function CommunityNew() {
         <div>
           <label htmlFor="body" className="block text-sm font-medium text-slate-300">Body</label>
           <textarea id="body" value={body} onChange={(e) => setBody(e.target.value)} className="input mt-1 min-h-[160px] resize-y" placeholder="Describe your question or topic…" required />
+        </div>
+        <div>
+          <label htmlFor="repoUrl" className="block text-sm font-medium text-slate-300">Public GitHub repo <span className="font-normal text-slate-500">(optional)</span></label>
+          <input
+            id="repoUrl"
+            type="url"
+            value={repoUrl}
+            onChange={(e) => setRepoUrl(e.target.value)}
+            className="input mt-1"
+            placeholder="https://github.com/you/your-project"
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            Only <strong className="text-slate-400">public</strong> repositories are shown. Private or missing repos are rejected.
+          </p>
         </div>
         <button type="submit" className="btn-primary w-full" disabled={loading}>{loading ? 'Posting…' : 'Post'}</button>
       </form>
