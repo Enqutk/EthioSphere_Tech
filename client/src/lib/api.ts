@@ -73,6 +73,14 @@ export const authApi = {
 
 export const usersApi = {
   me: (token: string) => api<Record<string, unknown>>('/api/users/me', { token }),
+  discover: (params?: { q?: string; skill?: string; limit?: number }, token?: string | null) => {
+    const q = new URLSearchParams();
+    if (params?.q?.trim()) q.set('q', params.q.trim());
+    if (params?.skill?.trim()) q.set('skill', params.skill.trim());
+    if (params?.limit != null) q.set('limit', String(params.limit));
+    const qs = q.toString();
+    return api<DiscoverUser[]>(`/api/users/discover${qs ? `?${qs}` : ''}`, token ? { token } : {});
+  },
   getByUsername: (username: string, token?: string | null) =>
     api<Record<string, unknown>>(`/api/users/${encodeURIComponent(username)}`, token ? { token } : {}),
   updateMe: (token: string, body: Record<string, unknown>) =>
@@ -123,7 +131,32 @@ export const messagesApi = {
     api<unknown>(`/api/messages/with/${userId}`, { method: 'POST', body: JSON.stringify({ body }), token }),
 };
 
+export type FollowForViewer = {
+  direction: string;
+  status: string | null;
+  id: string | null;
+};
+
+export type DiscoverUser = {
+  id: string;
+  name: string;
+  username: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
+  rank: string;
+  rankLabel?: string;
+  skills?: string[];
+  projectsOwned: { id: string; title: string; githubFullName?: string | null }[];
+  posts: { id: string; title: string; section: string }[];
+  followForViewer: FollowForViewer | null;
+};
+
 export const followApi = {
+  state: (token: string, username: string) =>
+    api<{ userId: string; self?: boolean; followForViewer: FollowForViewer | null }>(
+      `/api/follow/state/${encodeURIComponent(username)}`,
+      { token },
+    ),
   incoming: (token: string) =>
     api<{ id: string; followerId: string; follower: { id: string; name: string; username: string; avatarUrl?: string | null } }[]>(
       '/api/follow/requests/incoming',
