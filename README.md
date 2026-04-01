@@ -67,7 +67,14 @@ cd server
 npx prisma db seed
 ```
 
-This creates a demo user (`demo@programmers.world` / `demo1234`) and a sample "FizzBuzz" challenge.
+This creates:
+
+- **Demo:** `demo@programmers.world` / `demo1234`
+- **Admin:** `admin@programmers.world` / `admin1234` (or set `ADMIN_SEED_PASSWORD` in `server/.env` before seeding; the seed resets the admin password on each run)
+
+Only admins can **create** coding challenges (`POST /api/challenges`). The demo account cannot.
+
+**Production:** change or remove these seeded accounts; do not rely on default passwords.
 
 ### 5. Run
 
