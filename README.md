@@ -9,6 +9,7 @@ A unified platform for programmers to **learn**, **build**, **compete**, and **c
 - **Project playground** — Create projects, join with a role (frontend/backend/UI/UX/fullstack), browse and search
 - **Community** — Sections (General, Debug help, Project feedback, etc.), posts, threaded comments, mark solution
 - **Coding challenges** — List challenges, submit solutions, earn points
+- **Admin** — Seeded `isAdmin` users get `/admin`: create/delete challenges, delete community posts, delete non-admin users (API: `/api/admin/*`)
 
 ## Tech stack
 
@@ -72,7 +73,7 @@ This creates:
 - **Demo:** `demo@programmers.world` / `demo1234`
 - **Admin:** `admin@programmers.world` / `admin1234` (or set `ADMIN_SEED_PASSWORD` in `server/.env` before seeding; the seed resets the admin password on each run)
 
-Only admins can **create** coding challenges (`POST /api/challenges`). The demo account cannot.
+Admins (`isAdmin: true`) can **create** challenges (`POST /api/challenges`), use **`/admin`** in the app, and call **`/api/admin`** for overview, post/user lists, `DELETE` posts/users, and `DELETE` challenges. You cannot delete yourself or another admin via the API. User delete cascades (projects, posts, etc. per Prisma).
 
 **Production:** change or remove these seeded accounts; do not rely on default passwords.
 
