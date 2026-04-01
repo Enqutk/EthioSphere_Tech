@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
+import { parseGithubRepo, verifyPublicGithubRepo } from '../lib/githubPublic.js';
 
 export const challengesRouter = Router();
 
@@ -39,8 +40,10 @@ challengesRouter.get('/:id', optionalAuth, async (req, res) => {
 challengesRouter.post(
   '/:id/submit',
   requireAuth,
-  [body('solutionUrl').optional().trim().isURL()],
+  [body('solutionUrl').optional({ values: 'falsy' }).isString().trim()],
   async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
     const challenge = await prisma.challenge.findUnique({ where: { id: req.params.id } });
     if (!challenge) return res.status(404).json({ error: 'Challenge not found' });
     if (!challenge.active) return res.status(400).json({ error: 'Challenge is not active' });
@@ -48,13 +51,48 @@ challengesRouter.post(
       where: { challengeId: req.params.id, userId: req.user.id },
     });
     if (existing) return res.status(400).json({ error: 'Already submitted for this challenge' });
-    const solutionUrl = req.body.solutionUrl || null;
+
+    let solutionUrl = typeof req.body.solutionUrl === 'string' ? req.body.solutionUrl.trim() : '';
+    let repoFullName = null;
+    let repoPublic = null;
+    let repoDescription = null;
+
+    if (solutionUrl) {
+      if (parseGithubRepo(solutionUrl)) {
+        const v = await verifyPublicGithubRepo(solutionUrl);
+        if (!v.ok) {
+          return res.status(400).json({
+            error: 'GitHub repository links must point to a public repo we can verify.',
+            reason: v.reason,
+          });
+        }
+        solutionUrl = v.htmlUrl;
+        repoFullName = v.fullName;
+        repoPublic = true;
+        repoDescription = v.description;
+      } else {
+        try {
+          const u = new URL(solutionUrl);
+          if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+            return res.status(400).json({ error: 'Invalid solution URL' });
+          }
+        } catch {
+          return res.status(400).json({ error: 'Invalid solution URL' });
+        }
+      }
+    } else {
+      solutionUrl = null;
+    }
+
     const points = challenge.rewardPoints;
     const submission = await prisma.challengeSubmission.create({
       data: {
         challengeId: req.params.id,
         userId: req.user.id,
         solutionUrl,
+        repoFullName,
+        repoPublic,
+        repoDescription,
         points,
       },
       include: { user: { select: { id: true, name: true, username: true } }, challenge: { select: { title: true } } },
