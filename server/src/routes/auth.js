@@ -71,7 +71,7 @@ authRouter.post(
           githubUrl,
           avatarUrl,
         },
-        select: { id: true, email: true, username: true, name: true, rank: true, avatarUrl: true, githubUrl: true },
+        select: { id: true, email: true, username: true, name: true, rank: true, avatarUrl: true, githubUrl: true, isAdmin: true },
       });
       const token = signToken({ userId: user.id });
       res.status(201).json({ user, token, ...(githubNote && { githubNote }) });
@@ -123,15 +123,25 @@ authRouter.post(
           rank: user.rank,
           avatarUrl: user.avatarUrl,
           githubUrl: user.githubUrl,
+          isAdmin: user.isAdmin,
         },
         token,
       });
     } catch (err) {
       console.error('POST /api/auth/login', err);
       const dev = process.env.NODE_ENV !== 'production';
+      const hint =
+        err.code === 'P1001'
+          ? 'Cannot reach PostgreSQL. Check DATABASE_URL and that the database is running (Neon: wake project, use sslmode=require).'
+          : err.code === 'P2021' || err.message?.includes('does not exist')
+            ? 'Database tables or columns are out of date. Run: cd server && npx prisma db push'
+            : err.code === 'P2022' || /column .* does not exist/i.test(String(err.message))
+              ? 'Database schema mismatch. Run: cd server && npx prisma db push && npx prisma generate, then restart the API.'
+              : null;
       res.status(500).json({
         error: 'Login failed',
         ...(dev && { details: err.message, code: err.code }),
+        ...(hint && { hint }),
       });
     }
   }
