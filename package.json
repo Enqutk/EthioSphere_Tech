@@ -1,0 +1,18 @@
+{
+  "name": "programmers-world",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Unified platform for programmers to learn, build, compete, and collaborate",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "build": "npm run build --prefix server && npm run build --prefix client",
+    "db:generate": "npm run db:generate --prefix server",
+    "db:push": "npm run db:push --prefix server",
+    "db:studio": "npm run db:studio --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

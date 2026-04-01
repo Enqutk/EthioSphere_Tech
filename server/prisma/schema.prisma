@@ -1,0 +1,192 @@
+// Programmers World - Database Schema
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Users & Auth ---
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String?   @map("password_hash") // null if OAuth-only
+  name          String
+  username      String    @unique
+  avatarUrl     String?   @map("avatar_url")
+  bio           String?
+  rank          Rank      @default(NEWBIE)
+  githubUrl     String?   @map("github_url")
+  skills        String[]  @default([]) // e.g. ["React", "Node.js"]
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  projectsOwned   Project[]       @relation("ProjectOwner")
+  projectMembers  ProjectMember[]
+  posts           Post[]
+  postVotes       PostVote[]
+  comments        Comment[]
+  challengeSubs   ChallengeSubmission[]
+  badges          UserBadge[]
+}
+
+enum Rank {
+  NEWBIE
+  JUNIOR_DEV
+  PRO_DEV
+  ELITE_ARCHITECT
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  badgeType String   @map("badge_type") // e.g. "first_project", "challenge_winner"
+  earnedAt  DateTime @default(now()) @map("earned_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, badgeType])
+  @@map("user_badges")
+}
+
+// --- Projects (Playground) ---
+model Project {
+  id          String        @id @default(cuid())
+  title       String
+  description String
+  status      ProjectStatus @default(PLANNING)
+  type        ProjectType   @default(LEARNING)
+  ownerId     String        @map("owner_id")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  owner   User            @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members ProjectMember[]
+}
+
+enum ProjectStatus {
+  PLANNING
+  IN_PROGRESS
+  COMPLETED
+  ARCHIVED
+}
+
+enum ProjectType {
+  OPEN_SOURCE
+  HACKATHON
+  LEARNING
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String   @map("project_id")
+  userId    String   @map("user_id")
+  role      String   // "frontend", "backend", "ui_ux", "fullstack"
+  joinedAt  DateTime @default(now()) @map("joined_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+// --- Challenges ---
+model Challenge {
+  id           String         @id @default(cuid())
+  title        String
+  description  String
+  difficulty   ChallengeDifficulty @default(MEDIUM)
+  rewardPoints Int            @default(0) @map("reward_points")
+  active       Boolean        @default(true)
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  submissions ChallengeSubmission[]
+}
+
+enum ChallengeDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+model ChallengeSubmission {
+  id          String   @id @default(cuid())
+  challengeId String   @map("challenge_id")
+  userId      String   @map("user_id")
+  solutionUrl String?  @map("solution_url") // e.g. GitHub link or code snippet ref
+  points      Int      @default(0)
+  submittedAt DateTime @default(now()) @map("submitted_at")
+
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("challenge_submissions")
+}
+
+// --- Community (Discussions) ---
+model Post {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  section   PostSection @default(GENERAL)
+  authorId  String   @map("author_id")
+  solved    Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  votes    PostVote[]
+  comments Comment[]
+}
+
+enum PostSection {
+  GENERAL
+  DEBUG_HELP
+  PROJECT_FEEDBACK
+  ANNOUNCEMENTS
+  REACT
+  NODE
+  PYTHON
+  OTHER
+}
+
+model PostVote {
+  id        String   @id @default(cuid())
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  upvote    Boolean  // true = upvote, false = downvote
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([postId, userId])
+  @@map("post_votes")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String   @map("post_id")
+  authorId  String   @map("author_id")
+  body      String
+  isSolution Boolean @default(false) @map("is_solution")
+  parentId  String?  @map("parent_id") // for threaded replies
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  @@map("comments")
+}
+
+// --- Events (for Phase 2 expansion) ---
+model Event {
+  id        String   @id @default(cuid())
+  name      String
+  type      String   // "hackathon", "battle", "themed_week"
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+}
