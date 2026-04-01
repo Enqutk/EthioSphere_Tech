@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
 import { signToken } from '../middleware/auth.js';
+import { parseGithubUserLogin, fetchGithubUser, inferRankFromGithub } from '../lib/githubPublic.js';
 
 export const authRouter = Router();
 
@@ -13,6 +14,7 @@ authRouter.post(
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
     body('name').trim().notEmpty(),
     body('username').trim().isLength({ min: 2, max: 30 }).matches(/^[a-zA-Z0-9_]+$/).withMessage('Username: letters, numbers, underscore only'),
+    body('githubUrl').optional({ values: 'falsy' }).isString().trim(),
   ],
   async (req, res) => {
     try {
@@ -21,6 +23,37 @@ authRouter.post(
         return res.status(400).json({ errors: errors.array() });
       }
       const { email, password, name, username } = req.body;
+      const rawGithub = typeof req.body.githubUrl === 'string' ? req.body.githubUrl.trim() : '';
+
+      let rank = 'NEWBIE';
+      let githubUrl = null;
+      let avatarUrl = null;
+      let githubNote = null;
+
+      if (rawGithub) {
+        const login = parseGithubUserLogin(rawGithub);
+        if (!login) {
+          return res.status(400).json({
+            error: 'Invalid GitHub profile',
+            hint: 'Use your GitHub username, @name, or a profile URL like https://github.com/yourname',
+          });
+        }
+        const gh = await fetchGithubUser(login);
+        if (!gh.ok) {
+          if (gh.status === 404) {
+            return res.status(400).json({ error: 'GitHub user not found. Double-check the username or URL.' });
+          }
+          githubNote =
+            gh.status === 403
+              ? 'GitHub API rate limit — rank set to Newbie. Add your profile in settings later.'
+              : 'Could not reach GitHub — rank set to Newbie. You can add your profile later.';
+        } else {
+          rank = inferRankFromGithub(gh.data);
+          githubUrl = gh.data.html_url || `https://github.com/${login}`;
+          avatarUrl = gh.data.avatar_url || null;
+        }
+      }
+
       const existing = await prisma.user.findFirst({
         where: { OR: [{ email }, { username: username.toLowerCase() }] },
       });
@@ -34,11 +67,14 @@ authRouter.post(
           passwordHash,
           name,
           username: username.toLowerCase(),
+          rank,
+          githubUrl,
+          avatarUrl,
         },
-        select: { id: true, email: true, username: true, name: true, rank: true, avatarUrl: true },
+        select: { id: true, email: true, username: true, name: true, rank: true, avatarUrl: true, githubUrl: true },
       });
       const token = signToken({ userId: user.id });
-      res.status(201).json({ user, token });
+      res.status(201).json({ user, token, ...(githubNote && { githubNote }) });
     } catch (err) {
       console.error('POST /api/auth/register', err);
       const dev = process.env.NODE_ENV !== 'production';
@@ -86,6 +122,7 @@ authRouter.post(
           name: user.name,
           rank: user.rank,
           avatarUrl: user.avatarUrl,
+          githubUrl: user.githubUrl,
         },
         token,
       });
