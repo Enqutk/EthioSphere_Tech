@@ -11,7 +11,14 @@ type Challenge = {
   difficulty: string;
   rewardPoints: number;
   active: boolean;
-  submissions?: { user: { name: string; username: string }; points: number }[];
+  submissions?: {
+    id: string;
+    user: { name: string; username: string };
+    points: number;
+    solutionUrl?: string | null;
+    repoFullName?: string | null;
+    repoPublic?: boolean | null;
+  }[];
 };
 
 const DIFF: Record<string, string> = { EASY: 'Easy', MEDIUM: 'Medium', HARD: 'Hard' };
@@ -71,9 +78,12 @@ export default function ChallengeDetail() {
         {user && challenge.active && (
           <div className="mt-8 border-t border-slate-700 pt-6">
             <h2 className="font-mono text-sm font-medium text-slate-400">Submit your solution</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Paste a <strong className="text-slate-400">public</strong> GitHub repo URL to show it on the leaderboard, or any other https link.
+            </p>
             {message && <p className={`mt-2 text-sm ${message.startsWith('Submission') ? 'text-green-400' : 'text-red-400'}`}>{message}</p>}
             <form onSubmit={handleSubmit} className="mt-3 space-y-3">
-              <input type="url" value={solutionUrl} onChange={(e) => setSolutionUrl(e.target.value)} placeholder="Solution URL (e.g. GitHub link)" className="input" />
+              <input type="url" value={solutionUrl} onChange={(e) => setSolutionUrl(e.target.value)} placeholder="https://github.com/you/solution-repo or other URL" className="input" />
               <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? 'Submitting…' : 'Submit'}</button>
             </form>
           </div>
@@ -81,11 +91,22 @@ export default function ChallengeDetail() {
         {challenge.submissions && challenge.submissions.length > 0 && (
           <div className="mt-8 border-t border-slate-700 pt-6">
             <h2 className="font-mono text-sm font-medium text-slate-400">Top submissions</h2>
-            <ul className="mt-2 space-y-2">
-              {challenge.submissions.slice(0, 10).map((s, i) => (
-                <li key={i} className="flex items-center justify-between text-sm text-slate-300">
+            <ul className="mt-2 space-y-3">
+              {challenge.submissions.slice(0, 10).map((s) => (
+                <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-300">
                   <Link to={`/profile/${s.user.username}`} className="hover:text-brand-400">@{s.user.username}</Link>
-                  <span className="text-brand-400">{s.points} pts</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {s.repoPublic && s.solutionUrl && s.repoFullName ? (
+                      <a href={s.solutionUrl} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-brand-400 hover:underline">
+                        {s.repoFullName}
+                      </a>
+                    ) : s.solutionUrl ? (
+                      <a href={s.solutionUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-slate-400 hover:text-brand-400">
+                        link
+                      </a>
+                    ) : null}
+                    <span className="text-brand-400">{s.points} pts</span>
+                  </div>
                 </li>
               ))}
             </ul>
