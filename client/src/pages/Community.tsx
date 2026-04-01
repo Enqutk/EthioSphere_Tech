@@ -8,6 +8,8 @@ type Post = {
   body: string;
   section: string;
   solved: boolean;
+  repoFullName?: string | null;
+  repoPublic?: boolean | null;
   author: { id: string; name: string; username: string };
   _count?: { comments: number };
   upvotes?: number;
@@ -53,10 +55,13 @@ export default function Community() {
               <Link to={`/community/${p.id}`} className="card block p-6 transition hover:border-brand-500/50">
                 <h2 className="font-mono font-semibold text-slate-100">{p.title}</h2>
                 <p className="mt-1 line-clamp-2 text-sm text-slate-400">{p.body}</p>
-                <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
+                <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">
                   <span>{SECTIONS[p.section] ?? p.section}</span>
                   <span>by @{p.author.username}</span>
                   {p.solved && <span className="text-green-400">Solved</span>}
+                  {p.repoPublic && p.repoFullName && (
+                    <span className="rounded bg-slate-700/80 px-2 py-0.5 font-mono text-slate-300">📂 {p.repoFullName}</span>
+                  )}
                   {p._count?.comments != null && <span>{p._count.comments} comments</span>}
                 </div>
               </Link>
