@@ -31,7 +31,11 @@ export default function Inbox() {
       return;
     }
     const token = getStoredToken();
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      navigate('/login', { state: { from: '/inbox' } });
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     setLoadError('');
