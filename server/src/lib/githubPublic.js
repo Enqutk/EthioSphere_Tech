@@ -129,3 +129,114 @@ export async function verifyPublicGithubRepo(urlOrPath) {
     description: d.description ? String(d.description).slice(0, 500) : null,
   };
 }
+
+/** Subset of GitHub repo JSON for UI + cache */
+export function pickRepoDisplayFields(d) {
+  if (!d || typeof d !== 'object') return null;
+  return {
+    full_name: d.full_name,
+    html_url: d.html_url,
+    name: d.name,
+    description: d.description,
+    stargazers_count: d.stargazers_count,
+    forks_count: d.forks_count,
+    open_issues_count: d.open_issues_count,
+    watchers_count: d.watchers_count,
+    subscribers_count: d.subscribers_count,
+    default_branch: d.default_branch,
+    homepage: d.homepage,
+    topics: d.topics,
+    archived: d.archived,
+    disabled: d.disabled,
+    visibility: d.visibility,
+    fork: d.fork,
+    parent: d.parent?.full_name ?? null,
+    created_at: d.created_at,
+    updated_at: d.updated_at,
+    pushed_at: d.pushed_at,
+    size: d.size,
+    language: d.language,
+    has_wiki: d.has_wiki,
+    has_issues: d.has_issues,
+    has_projects: d.has_projects,
+    has_discussions: d.has_discussions,
+    is_template: d.is_template,
+    owner: d.owner
+      ? {
+          login: d.owner.login,
+          avatar_url: d.owner.avatar_url,
+          html_url: d.owner.html_url,
+          type: d.owner.type,
+        }
+      : null,
+    license: d.license
+      ? { key: d.license.key, name: d.license.name, spdx_id: d.license.spdx_id }
+      : null,
+  };
+}
+
+export async function fetchReadmeRaw(owner, repo) {
+  const token = process.env.GITHUB_TOKEN;
+  const res = await fetch(
+    `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/readme`,
+    {
+      headers: {
+        Accept: 'application/vnd.github.raw',
+        'User-Agent': USER_AGENT,
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      signal: AbortSignal.timeout(20000),
+    },
+  );
+  if (res.status === 404) return '';
+  if (!res.ok) return '';
+  const text = await res.text();
+  return text.slice(0, 120000);
+}
+
+export async function fetchRepoLanguages(owner, repo) {
+  const r = await githubFetchJson(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/languages`);
+  return r.ok && r.data && typeof r.data === 'object' ? r.data : {};
+}
+
+export async function fetchRepoContributors(owner, repo) {
+  const r = await githubFetchJson(
+    `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contributors?per_page=40`,
+  );
+  if (!r.ok || !Array.isArray(r.data)) return [];
+  return r.data.map((c) => ({
+    login: c.login,
+    id: c.id,
+    contributions: c.contributions,
+    avatar_url: c.avatar_url,
+    html_url: c.html_url,
+    type: c.type,
+  }));
+}
+
+/**
+ * Full public snapshot for a repository (for project pages).
+ * @returns {Promise<{ ok: true, payload: object, apiRepo: object } | { ok: false, message?: string, status?: number }>}
+ */
+export async function buildPublicRepoBundle(owner, repo) {
+  const r = await fetchGithubRepo(owner, repo);
+  if (!r.ok) {
+    return { ok: false, status: r.status, message: r.message || 'Could not load repository' };
+  }
+  if (r.data.private) {
+    return { ok: false, message: 'Repository is private' };
+  }
+  const [readme, languages, contributors] = await Promise.all([
+    fetchReadmeRaw(owner, repo),
+    fetchRepoLanguages(owner, repo),
+    fetchRepoContributors(owner, repo),
+  ]);
+  const payload = {
+    repo: pickRepoDisplayFields(r.data),
+    languages,
+    readme: readme || null,
+    contributors,
+  };
+  return { ok: true, payload, apiRepo: r.data };
+}
