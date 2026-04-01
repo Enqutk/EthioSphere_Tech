@@ -3,6 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { projectsApi } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
 import { getStoredToken } from '@/components/AuthProvider';
+import { FollowCreatorActions } from '@/components/FollowCreatorActions';
 
 type GithubRepoInfo = {
   full_name?: string;
@@ -187,10 +188,14 @@ export default function ProjectDetail() {
               )}
             </div>
           </div>
-          <Link to={`/profile/${project.owner.username}`} className="flex items-center gap-2 text-sm text-slate-400 hover:text-brand-400">
-            {project.owner.avatarUrl ? <img src={project.owner.avatarUrl} alt="" className="h-8 w-8 rounded-full" /> : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-800 text-slate-500">{project.owner.name.charAt(0)}</span>}
-            {project.owner.name} (@{project.owner.username})
-          </Link>
+          <div className="flex flex-col items-end gap-2 text-right">
+            <Link to={`/profile/${project.owner.username}`} className="flex items-center gap-2 text-sm text-slate-400 hover:text-brand-400">
+              {project.owner.avatarUrl ? <img src={project.owner.avatarUrl} alt="" className="h-8 w-8 rounded-full" /> : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-800 text-slate-500">{project.owner.name.charAt(0)}</span>}
+              {project.owner.name} (@{project.owner.username})
+            </Link>
+            <p className="text-xs text-slate-500">Creator</p>
+            <FollowCreatorActions username={project.owner.username} userId={project.owner.id} className="justify-end" />
+          </div>
         </div>
 
         {project.githubHtmlUrl && project.githubFullName && (
