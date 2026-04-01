@@ -8,7 +8,7 @@ A unified platform for programmers to **learn**, **build**, **compete**, and **c
 - **Developer profiles** — Username, bio, skills, rank, projects, badges
 - **Project playground** — Create projects, join with a role (frontend/backend/UI/UX/fullstack), browse and search
 - **Community** — Sections (General, Debug help, Project feedback, etc.), posts, threaded comments, mark solution
-- **Coding challenges** — List challenges, submit solutions, earn points
+- **Coding challenges** — Submit solutions (e.g. GitHub links); optional **submission close** time hides others’ entries until the deadline, then shows a **public timeline** in submission order. Challenges without a close time use a classic leaderboard.
 - **Admin** — Seeded `isAdmin` users get `/admin`: create/delete challenges, delete community posts, delete non-admin users (API: `/api/admin/*`)
 
 ## Tech stack
