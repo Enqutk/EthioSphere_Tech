@@ -28,7 +28,7 @@ export async function requireAuth(req, res, next) {
     }
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, email: true, username: true, name: true, rank: true, avatarUrl: true },
+      select: { id: true, email: true, username: true, name: true, rank: true, avatarUrl: true, isAdmin: true },
     });
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
@@ -53,6 +53,14 @@ export async function requireAuth(req, res, next) {
   }
 }
 
+/** Use after requireAuth. Returns 403 if the user is not an admin. */
+export function requireAdmin(req, res, next) {
+  if (!req.user?.isAdmin) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+}
+
 /** Attaches req.user when a valid Bearer token is present; never fails the request */
 export async function optionalAuth(req, res, next) {
   try {
@@ -69,7 +77,7 @@ export async function optionalAuth(req, res, next) {
     }
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, email: true, username: true, name: true, rank: true, avatarUrl: true },
+      select: { id: true, email: true, username: true, name: true, rank: true, avatarUrl: true, isAdmin: true },
     });
     req.user = user ?? undefined;
   } catch (err) {
