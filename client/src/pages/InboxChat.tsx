@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { messagesApi } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
 import { getStoredToken } from '@/components/AuthProvider';
+
+type MsgRow = { id: string; body: string; createdAt: string; senderId: string };
 
 export default function InboxChat() {
   const { userId } = useParams<{ userId: string }>();
@@ -10,28 +12,16 @@ export default function InboxChat() {
   const { user, ready } = useAuth();
   const [otherName, setOtherName] = useState('');
   const [otherUsername, setOtherUsername] = useState('');
-  const [messages, setMessages] = useState<{ id: string; body: string; createdAt: string; senderId: string }[]>([]);
+  const [messages, setMessages] = useState<MsgRow[]>([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-
-  const load = () => {
-    const token = getStoredToken();
-    if (!token || !userId) return;
-    messagesApi
-      .thread(token, userId)
-      .then((data) => {
-        setOtherName(data.otherUser.name);
-        setOtherUsername(data.otherUser.username);
-        setMessages(data.messages as { id: string; body: string; createdAt: string; senderId: string }[]);
-      })
-      .finally(() => setLoading(false));
-  };
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!ready) return;
     if (!user) {
-      navigate('/login');
+      navigate('/login', { state: { from: userId ? `/inbox/${userId}` : '/inbox' } });
       return;
     }
     if (!userId) return;
@@ -39,19 +29,58 @@ export default function InboxChat() {
       navigate('/inbox');
       return;
     }
+
+    let cancelled = false;
     setLoading(true);
-    load();
+    setError('');
+    setMessages([]);
+    setOtherName('');
+    setOtherUsername('');
+
+    const token = getStoredToken();
+    if (!token) {
+      setLoading(false);
+      setError('Not signed in. Log in again to send messages.');
+      return;
+    }
+
+    messagesApi
+      .thread(token, userId)
+      .then((data) => {
+        if (cancelled) return;
+        setOtherName(data.otherUser.name);
+        setOtherUsername(data.otherUser.username);
+        setMessages(data.messages as MsgRow[]);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setMessages([]);
+        setError(err instanceof Error ? err.message : 'Could not load messages');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [user, ready, userId, navigate]);
 
-  async function handleSend(e: React.FormEvent) {
+  async function handleSend(e: FormEvent) {
     e.preventDefault();
     const token = getStoredToken();
     if (!token || !userId || !text.trim()) return;
     setSending(true);
+    setError('');
     try {
       await messagesApi.send(token, userId, text.trim());
       setText('');
-      load();
+      const data = await messagesApi.thread(token, userId);
+      setOtherName(data.otherUser.name);
+      setOtherUsername(data.otherUser.username);
+      setMessages(data.messages as MsgRow[]);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Could not send message');
     } finally {
       setSending(false);
     }
@@ -67,8 +96,15 @@ export default function InboxChat() {
           {loading ? '…' : otherName}{' '}
           <span className="text-sm font-normal text-slate-500">@{otherUsername}</span>
         </h1>
-        <Link to={`/profile/${otherUsername}`} className="text-xs text-brand-400 hover:underline">Profile</Link>
+        {otherUsername ? (
+          <Link to={`/profile/${otherUsername}`} className="text-xs text-brand-400 hover:underline">Profile</Link>
+        ) : null}
       </div>
+      {error && (
+        <div className="mt-4 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300" role="alert">
+          {error}
+        </div>
+      )}
       <div className="mt-6 flex flex-1 flex-col overflow-hidden rounded-lg border border-slate-800 bg-surface-900/50">
         <div className="flex-1 space-y-3 overflow-y-auto p-4">
           {loading ? (
