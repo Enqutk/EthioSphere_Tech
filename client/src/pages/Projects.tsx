@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { projectsApi } from '@/lib/api';
+import { getStoredToken } from '@/components/AuthProvider';
 
 type Project = {
   id: string;
@@ -8,6 +9,13 @@ type Project = {
   description: string;
   status: string;
   type: string;
+  visibility?: string;
+  seekingReview?: boolean;
+  githubFullName?: string | null;
+  githubHtmlUrl?: string | null;
+  githubData?: {
+    repo?: { stargazers_count?: number; language?: string | null } | null;
+  } | null;
   owner: { id: string; name: string; username: string };
   members?: { role: string }[];
 };
@@ -21,7 +29,11 @@ export default function Projects() {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    projectsApi.list(search ? { search } : undefined).then((data) => setProjects(data as Project[])).finally(() => setLoading(false));
+    const token = getStoredToken();
+    projectsApi
+      .list(search ? { search } : undefined, token)
+      .then((data) => setProjects(data as Project[]))
+      .finally(() => setLoading(false));
   }, [search]);
 
   return (
@@ -33,7 +45,6 @@ export default function Projects() {
           <input type="search" placeholder="Search projects…" value={search} onChange={(e) => setSearch(e.target.value)} className="input max-w-xs" />
         </div>
       </div>
-      <p className="mt-2 text-slate-400">Browse and join real-world projects. Or start your own.</p>
       {loading ? (
         <div className="mt-12 text-center text-slate-400">Loading projects…</div>
       ) : projects.length === 0 ? (
@@ -46,10 +57,25 @@ export default function Projects() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="font-mono font-semibold text-slate-100">{p.title}</h2>
+                    {p.githubFullName && (
+                      <p className="mt-1 font-mono text-xs text-brand-400/90">{p.githubFullName}</p>
+                    )}
                     <p className="mt-1 line-clamp-2 text-sm text-slate-400">{p.description}</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
                       <span className="rounded bg-surface-800 px-2 py-0.5 text-xs text-slate-400">{STATUS[p.status] ?? p.status}</span>
                       <span className="rounded bg-surface-800 px-2 py-0.5 text-xs text-slate-400">{TYPE[p.type] ?? p.type}</span>
+                      {p.visibility && p.visibility !== 'PUBLIC' && (
+                        <span className="rounded bg-amber-500/15 px-2 py-0.5 text-xs text-amber-400">{p.visibility.replace('_', ' ')}</span>
+                      )}
+                      {p.seekingReview && (
+                        <span className="rounded bg-brand-500/20 px-2 py-0.5 text-xs text-brand-400">Seeking review</span>
+                      )}
+                      {p.githubData?.repo?.stargazers_count != null && (
+                        <span className="text-xs text-slate-500">★ {p.githubData.repo.stargazers_count}</span>
+                      )}
+                      {p.githubData?.repo?.language && (
+                        <span className="text-xs text-slate-500">{p.githubData.repo.language}</span>
+                      )}
                     </div>
                   </div>
                   <div className="text-right text-sm text-slate-500">by {p.owner.name} (@{p.owner.username})</div>
