@@ -3,8 +3,25 @@ import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import { parseGithubRepo, verifyPublicGithubRepo } from '../lib/githubPublic.js';
+import { canViewProject } from '../lib/projectAccess.js';
 
 export const postsRouter = Router();
+
+// visibility + ownerId used only server-side for canViewProject; stripped before JSON
+const postProjectSelect = {
+  id: true,
+  title: true,
+  githubFullName: true,
+  visibility: true,
+  ownerId: true,
+};
+
+async function projectPayloadForViewer(prismaClient, project, viewerId) {
+  if (!project) return null;
+  const ok = await canViewProject(prismaClient, project, viewerId);
+  if (!ok) return null;
+  return { id: project.id, title: project.title, githubFullName: project.githubFullName };
+}
 
 // List posts (community)
 postsRouter.get('/', optionalAuth, async (req, res) => {
@@ -21,15 +38,20 @@ postsRouter.get('/', optionalAuth, async (req, res) => {
     where,
     include: {
       author: { select: { id: true, name: true, username: true, avatarUrl: true, rank: true } },
+      project: { select: postProjectSelect },
       _count: { select: { comments: true, votes: true } },
     },
     orderBy: { createdAt: 'desc' },
     take: 50,
   });
-  const withVoteCount = posts.map((p) => ({
-    ...p,
-    upvotes: p._count.votes, // simplified: we could sum upvote vs downvote in a real impl
-  }));
+  const viewerId = req.user?.id;
+  const withVoteCount = await Promise.all(
+    posts.map(async (p) => {
+      const project = await projectPayloadForViewer(prisma, p.project, viewerId);
+      const { _count, project: _proj, ...rest } = p;
+      return { ...rest, project, upvotes: _count.votes };
+    }),
+  );
   res.json(withVoteCount);
 });
 
@@ -39,6 +61,7 @@ postsRouter.get('/:id', optionalAuth, async (req, res) => {
     where: { id: req.params.id },
     include: {
       author: { select: { id: true, name: true, username: true, avatarUrl: true, rank: true } },
+      project: { select: postProjectSelect },
       comments: {
         include: { author: { select: { id: true, name: true, username: true, avatarUrl: true } } },
         orderBy: { createdAt: 'asc' },
@@ -47,7 +70,10 @@ postsRouter.get('/:id', optionalAuth, async (req, res) => {
     },
   });
   if (!post) return res.status(404).json({ error: 'Post not found' });
-  res.json(post);
+  const viewerId = req.user?.id;
+  const project = await projectPayloadForViewer(prisma, post.project, viewerId);
+  const { project: _p, ...rest } = post;
+  res.json({ ...rest, project });
 });
 
 // Create post (auth required)
@@ -59,12 +85,27 @@ postsRouter.post(
     body('body').trim().notEmpty(),
     body('section').optional().isIn(['GENERAL', 'DEBUG_HELP', 'PROJECT_FEEDBACK', 'ANNOUNCEMENTS', 'REACT', 'NODE', 'PYTHON', 'OTHER']),
     body('repoUrl').optional({ values: 'falsy' }).isString().trim(),
+    body('projectId').optional({ values: 'falsy' }).isString().trim(),
   ],
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
     const { title, body, section = 'GENERAL' } = req.body;
+    const rawProjectId = typeof req.body.projectId === 'string' ? req.body.projectId.trim() : '';
     const rawRepo = typeof req.body.repoUrl === 'string' ? req.body.repoUrl.trim() : '';
+
+    let projectId = null;
+    if (rawProjectId) {
+      const proj = await prisma.project.findUnique({ where: { id: rawProjectId } });
+      if (!proj) {
+        return res.status(400).json({ error: 'Project not found', hint: 'Pick a project from the list or remove the link.' });
+      }
+      const allowed = await canViewProject(prisma, proj, req.user.id);
+      if (!allowed) {
+        return res.status(403).json({ error: 'You cannot link this project (not visible to you).' });
+      }
+      projectId = proj.id;
+    }
 
     let repoUrl = null;
     let repoFullName = null;
@@ -97,14 +138,20 @@ postsRouter.post(
         body,
         section,
         authorId: req.user.id,
+        projectId,
         repoUrl,
         repoFullName,
         repoPublic,
         repoDescription,
       },
-      include: { author: { select: { id: true, name: true, username: true, avatarUrl: true, rank: true } } },
+      include: {
+        author: { select: { id: true, name: true, username: true, avatarUrl: true, rank: true } },
+        project: { select: postProjectSelect },
+      },
     });
-    res.status(201).json(post);
+    const safeProject = await projectPayloadForViewer(prisma, post.project, req.user.id);
+    const { project: _rp, ...rest } = post;
+    res.status(201).json({ ...rest, project: safeProject });
   }
 );
 
