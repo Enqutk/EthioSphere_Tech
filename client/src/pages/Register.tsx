@@ -10,6 +10,7 @@ export default function Register() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [githubUrl, setGithubUrl] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -18,9 +19,15 @@ export default function Register() {
     setError('');
     setLoading(true);
     try {
-      const { user, token } = await authApi.register({ name, username: username.toLowerCase(), email, password });
+      const { user, token, githubNote } = await authApi.register({
+        name,
+        username: username.toLowerCase(),
+        email,
+        password,
+        ...(githubUrl.trim() ? { githubUrl: githubUrl.trim() } : {}),
+      });
       login(user, token);
-      navigate('/');
+      navigate('/', { state: githubNote ? { banner: githubNote } : undefined });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
       const data = (err as { errors?: { msg: string }[] })?.errors;
@@ -54,6 +61,20 @@ export default function Register() {
         <div>
           <label htmlFor="password" className="block text-sm font-medium text-slate-300">Password</label>
           <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="input mt-1" placeholder="At least 6 characters" minLength={6} required />
+        </div>
+        <div>
+          <label htmlFor="githubUrl" className="block text-sm font-medium text-slate-300">GitHub <span className="font-normal text-slate-500">(optional)</span></label>
+          <input
+            id="githubUrl"
+            type="text"
+            value={githubUrl}
+            onChange={(e) => setGithubUrl(e.target.value)}
+            className="input mt-1"
+            placeholder="username or https://github.com/yourname"
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            We use your public GitHub stats (repos, followers, account age) to suggest a starting skill level. You can change your profile later.
+          </p>
         </div>
         <button type="submit" className="btn-primary w-full" disabled={loading}>
           {loading ? 'Creating account…' : 'Sign up'}
