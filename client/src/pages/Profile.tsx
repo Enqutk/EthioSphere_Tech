@@ -31,17 +31,45 @@ export default function Profile() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!username) return;
-    usersApi.getByUsername(username).then((data) => setProfile(data as Profile)).catch(() => setError('Profile not found')).finally(() => setLoading(false));
+    if (!username?.trim()) {
+      setLoading(false);
+      setError('Invalid profile link');
+      setProfile(null);
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setProfile(null);
+    const u = username.trim().toLowerCase();
+    usersApi
+      .getByUsername(u)
+      .then((data) => setProfile(data as Profile))
+      .catch((err) => {
+        setProfile(null);
+        setError(err instanceof Error ? err.message : 'Could not load profile');
+      })
+      .finally(() => setLoading(false));
   }, [username]);
 
   if (loading) return <div className="mx-auto max-w-2xl px-6 py-16 text-center text-slate-400">Loading profile…</div>;
-  if (error || !profile) return <div className="mx-auto max-w-2xl px-6 py-16 text-center text-red-400">{error || 'Not found'}</div>;
+  if (error || !profile) {
+    return (
+      <div className="mx-auto max-w-2xl px-6 py-16 text-center">
+        <p className="text-red-400">{error || 'Profile not found'}</p>
+        <Link to="/" className="mt-4 inline-block text-sm text-brand-400 hover:underline">Back to home</Link>
+      </div>
+    );
+  }
 
-  const isOwn = me?.username === profile.username;
+  const isOwn = me?.username?.toLowerCase() === profile.username?.toLowerCase();
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-12">
+      <div className="mb-4 flex flex-wrap items-center gap-3 text-sm text-slate-500">
+        <Link to="/" className="hover:text-brand-400">Home</Link>
+        <span aria-hidden>/</span>
+        <span className="text-slate-400">@{profile.username}</span>
+      </div>
       <div className="card p-8">
         <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
           <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-surface-800">
@@ -55,25 +83,38 @@ export default function Profile() {
             <h1 className="font-mono text-2xl font-semibold text-slate-100">{profile.name}</h1>
             <p className="text-slate-400">@{profile.username}</p>
             <span className="mt-2 inline-block rounded-full bg-brand-500/20 px-3 py-0.5 text-sm font-medium text-brand-400">{RANK_LABELS[profile.rank] || profile.rank}</span>
-            {profile.bio && <p className="mt-3 text-slate-300">{profile.bio}</p>}
+            {profile.bio ? (
+              <p className="mt-3 text-slate-300">{profile.bio}</p>
+            ) : isOwn ? (
+              <p className="mt-3 text-sm text-slate-500">
+                No bio yet.{' '}
+                <Link to="/profile/edit" className="text-brand-400 hover:underline">Add one</Link>
+              </p>
+            ) : null}
             {profile.githubUrl && (
               <a href={profile.githubUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-brand-400 hover:underline">GitHub →</a>
             )}
           </div>
-          {isOwn && token && (
+          {isOwn && (
             <Link to="/profile/edit" className="btn-secondary">Edit profile</Link>
           )}
         </div>
-        {profile.skills && profile.skills.length > 0 && (
-          <div className="mt-6 border-t border-slate-700 pt-6">
-            <h2 className="font-mono text-sm font-medium text-slate-400">Skills</h2>
+        <div className="mt-6 border-t border-slate-700 pt-6">
+          <h2 className="font-mono text-sm font-medium text-slate-400">Skills</h2>
+          {profile.skills && profile.skills.length > 0 ? (
             <div className="mt-2 flex flex-wrap gap-2">
               {profile.skills.map((s) => (
                 <span key={s} className="rounded-md bg-surface-800 px-2 py-1 text-sm text-slate-300">{s}</span>
               ))}
             </div>
-          </div>
-        )}
+          ) : isOwn ? (
+            <p className="mt-2 text-sm text-slate-500">
+              <Link to="/profile/edit" className="text-brand-400 hover:underline">Add skills</Link> on your profile.
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-slate-500">No skills listed.</p>
+          )}
+        </div>
         {profile.projectsOwned && profile.projectsOwned.length > 0 && (
           <div className="mt-6 border-t border-slate-700 pt-6">
             <h2 className="font-mono text-sm font-medium text-slate-400">Projects</h2>
