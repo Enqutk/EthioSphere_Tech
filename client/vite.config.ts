@@ -16,6 +16,12 @@ export default defineConfig({
       '/api': {
         target: process.env.VITE_API_URL || 'http://localhost:4000',
         changeOrigin: true,
+        configure(proxy) {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            const auth = req.headers.authorization;
+            if (auth) proxyReq.setHeader('Authorization', auth);
+          });
+        },
       },
     },
   },
