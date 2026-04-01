@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
+import { parseGithubRepo, verifyPublicGithubRepo } from '../lib/githubPublic.js';
 
 export const postsRouter = Router();
 
@@ -57,14 +58,51 @@ postsRouter.post(
     body('title').trim().notEmpty().isLength({ max: 300 }),
     body('body').trim().notEmpty(),
     body('section').optional().isIn(['GENERAL', 'DEBUG_HELP', 'PROJECT_FEEDBACK', 'ANNOUNCEMENTS', 'REACT', 'NODE', 'PYTHON', 'OTHER']),
+    body('repoUrl').optional({ values: 'falsy' }).isString().trim(),
   ],
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
     const { title, body, section = 'GENERAL' } = req.body;
+    const rawRepo = typeof req.body.repoUrl === 'string' ? req.body.repoUrl.trim() : '';
+
+    let repoUrl = null;
+    let repoFullName = null;
+    let repoPublic = null;
+    let repoDescription = null;
+
+    if (rawRepo) {
+      if (!parseGithubRepo(rawRepo)) {
+        return res.status(400).json({
+          error: 'Repository link must be a public GitHub repo URL',
+          hint: 'Example: https://github.com/facebook/react',
+        });
+      }
+      const v = await verifyPublicGithubRepo(rawRepo);
+      if (!v.ok) {
+        return res.status(400).json({
+          error: 'We can only show repositories that exist on GitHub and are public.',
+          reason: v.reason,
+        });
+      }
+      repoUrl = v.htmlUrl;
+      repoFullName = v.fullName;
+      repoPublic = true;
+      repoDescription = v.description;
+    }
+
     const post = await prisma.post.create({
-      data: { title, body, section, authorId: req.user.id },
-      include: { author: { select: { id: true, name: true, username: true, avatarUrl: true } } },
+      data: {
+        title,
+        body,
+        section,
+        authorId: req.user.id,
+        repoUrl,
+        repoFullName,
+        repoPublic,
+        repoDescription,
+      },
+      include: { author: { select: { id: true, name: true, username: true, avatarUrl: true, rank: true } } },
     });
     res.status(201).json(post);
   }
