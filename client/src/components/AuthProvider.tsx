@@ -3,7 +3,14 @@ import type { User } from '@/lib/api';
 
 type AuthState = { user: User | null; token: string | null; ready: boolean };
 
-const AuthContext = createContext<AuthState & { login: (u: User, t: string) => void; logout: () => void }>(null!);
+type AuthContextValue = AuthState & {
+  login: (u: User, t: string) => void;
+  logout: () => void;
+  /** Merge fields into the current user (e.g. after profile save) and persist to localStorage */
+  updateSessionUser: (partial: Partial<User>) => void;
+};
+
+const AuthContext = createContext<AuthContextValue>(null!);
 
 const TOKEN_KEY = 'pw_token';
 const USER_KEY = 'pw_user';
@@ -29,8 +36,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState((s: AuthState) => ({ ...s, user: null, token: null }));
   };
 
+  const updateSessionUser = (partial: Partial<User>) => {
+    setState((s: AuthState) => {
+      if (!s.user) return s;
+      const next = { ...s.user, ...partial };
+      localStorage.setItem(USER_KEY, JSON.stringify(next));
+      return { ...s, user: next };
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ ...state, login, logout }}>
+    <AuthContext.Provider value={{ ...state, login, logout, updateSessionUser }}>
       {children}
     </AuthContext.Provider>
   );
