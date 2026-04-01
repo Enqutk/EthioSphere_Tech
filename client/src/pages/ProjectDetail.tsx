@@ -1,8 +1,49 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { projectsApi } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
 import { getStoredToken } from '@/components/AuthProvider';
+
+type GithubRepoInfo = {
+  full_name?: string;
+  html_url?: string;
+  name?: string;
+  description?: string | null;
+  stargazers_count?: number;
+  forks_count?: number;
+  open_issues_count?: number;
+  watchers_count?: number;
+  subscribers_count?: number;
+  default_branch?: string;
+  homepage?: string | null;
+  topics?: string[];
+  archived?: boolean;
+  disabled?: boolean;
+  fork?: boolean;
+  parent?: string | null;
+  pushed_at?: string;
+  created_at?: string;
+  updated_at?: string;
+  size?: number;
+  language?: string | null;
+  visibility?: string;
+  owner?: { login?: string; avatar_url?: string; html_url?: string; type?: string } | null;
+  license?: { key?: string; name?: string; spdx_id?: string } | null;
+};
+
+type GithubContributor = {
+  login: string;
+  avatar_url?: string;
+  html_url?: string;
+  contributions?: number;
+};
+
+type GithubDataBundle = {
+  repo?: GithubRepoInfo | null;
+  languages?: Record<string, number>;
+  readme?: string | null;
+  contributors?: GithubContributor[];
+};
 
 type Project = {
   id: string;
@@ -10,12 +51,46 @@ type Project = {
   description: string;
   status: string;
   type: string;
+  visibility?: string;
+  seekingReview?: boolean;
+  githubHtmlUrl?: string | null;
+  githubFullName?: string | null;
+  githubData?: GithubDataBundle | null;
+  githubSyncedAt?: string | null;
   owner: { id: string; name: string; username: string; avatarUrl?: string | null; rank: string };
   members: { role: string; user: { id: string; name: string; username: string; avatarUrl?: string | null } }[];
 };
 
 const STATUS: Record<string, string> = { PLANNING: 'Planning', IN_PROGRESS: 'In progress', COMPLETED: 'Completed', ARCHIVED: 'Archived' };
 const TYPE: Record<string, string> = { OPEN_SOURCE: 'Open source', HACKATHON: 'Hackathon', LEARNING: 'Learning' };
+
+function LanguageBars({ languages }: { languages: Record<string, number> }) {
+  const entries = useMemo(() => Object.entries(languages).sort((a, b) => b[1] - a[1]), [languages]);
+  const total = useMemo(() => entries.reduce((s, [, n]) => s + n, 0) || 1, [entries]);
+  const colors = ['bg-cyan-500', 'bg-violet-500', 'bg-amber-500', 'bg-emerald-500', 'bg-rose-500', 'bg-slate-500'];
+  return (
+    <div className="space-y-2">
+      <div className="flex h-3 overflow-hidden rounded-full bg-surface-800">
+        {entries.map(([lang, bytes], i) => (
+          <div
+            key={lang}
+            className={`${colors[i % colors.length]} min-w-[2px]`}
+            style={{ width: `${(bytes / total) * 100}%` }}
+            title={`${lang}: ${((bytes / total) * 100).toFixed(1)}%`}
+          />
+        ))}
+      </div>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
+        {entries.map(([lang, bytes], i) => (
+          <li key={lang} className="flex items-center gap-1.5">
+            <span className={`h-2 w-2 rounded-full ${colors[i % colors.length]}`} />
+            {lang} <span className="text-slate-600">{((bytes / total) * 100).toFixed(1)}%</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -26,11 +101,26 @@ export default function ProjectDetail() {
   const [joinRole, setJoinRole] = useState('fullstack');
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
+  const [editVis, setEditVis] = useState<'PUBLIC' | 'FOLLOWERS_ONLY' | 'PRIVATE'>('PUBLIC');
+  const [editSeeking, setEditSeeking] = useState(false);
+  const [ownerSaving, setOwnerSaving] = useState(false);
 
   useEffect(() => {
     if (!id) return;
-    projectsApi.get(id).then((data) => setProject(data as Project)).catch(() => setError('Project not found')).finally(() => setLoading(false));
+    const token = getStoredToken();
+    projectsApi
+      .get(id, token)
+      .then((data) => setProject(data as Project))
+      .catch(() => setError('Project not found'))
+      .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (!project) return;
+    const v = project.visibility;
+    if (v === 'FOLLOWERS_ONLY' || v === 'PRIVATE' || v === 'PUBLIC') setEditVis(v);
+    setEditSeeking(!!project.seekingReview);
+  }, [project?.id, project?.visibility, project?.seekingReview]);
 
   async function handleJoin() {
     const token = getStoredToken();
@@ -43,7 +133,7 @@ export default function ProjectDetail() {
     setError('');
     try {
       await projectsApi.join(token, id, joinRole);
-      const updated = await projectsApi.get(id);
+      const updated = await projectsApi.get(id, getStoredToken());
       setProject(updated as Project);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to join');
@@ -57,6 +147,24 @@ export default function ProjectDetail() {
   if (!project) return null;
 
   const canJoin = user && !(project.owner.id === user.id || project.members.some((m) => m.user.id === user.id)) && project.status !== 'ARCHIVED';
+  const isOwner = user?.id === project.owner.id;
+
+  async function handleOwnerSave() {
+    const token = getStoredToken();
+    if (!token || !id) return;
+    setOwnerSaving(true);
+    try {
+      await projectsApi.patch(token, id, { visibility: editVis, seekingReview: editSeeking });
+      const updated = await projectsApi.get(id, token);
+      setProject(updated as Project);
+    } finally {
+      setOwnerSaving(false);
+    }
+  }
+  const gh = project.githubData;
+  const repo = gh?.repo;
+  const languages = gh?.languages && typeof gh.languages === 'object' ? gh.languages : {};
+  const hasLanguages = Object.keys(languages).length > 0;
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-12">
@@ -68,6 +176,15 @@ export default function ProjectDetail() {
             <div className="mt-2 flex flex-wrap gap-2">
               <span className="rounded bg-surface-800 px-2 py-0.5 text-xs text-slate-400">{STATUS[project.status] ?? project.status}</span>
               <span className="rounded bg-surface-800 px-2 py-0.5 text-xs text-slate-400">{TYPE[project.type] ?? project.type}</span>
+              {repo?.archived && <span className="rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-400">Archived on GitHub</span>}
+              {project.visibility && project.visibility !== 'PUBLIC' && (
+                <span className="rounded bg-amber-500/15 px-2 py-0.5 text-xs text-amber-400">
+                  {project.visibility === 'FOLLOWERS_ONLY' ? 'Followers only' : 'Private'}
+                </span>
+              )}
+              {project.seekingReview && (
+                <span className="rounded bg-brand-500/20 px-2 py-0.5 text-xs text-brand-400">Seeking review</span>
+              )}
             </div>
           </div>
           <Link to={`/profile/${project.owner.username}`} className="flex items-center gap-2 text-sm text-slate-400 hover:text-brand-400">
@@ -75,10 +192,207 @@ export default function ProjectDetail() {
             {project.owner.name} (@{project.owner.username})
           </Link>
         </div>
+
+        {project.githubHtmlUrl && project.githubFullName && (
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <a href={project.githubHtmlUrl} target="_blank" rel="noopener noreferrer" className="btn-primary text-sm">
+              Open {project.githubFullName} on GitHub ↗
+            </a>
+            {project.githubSyncedAt && (
+              <span className="text-xs text-slate-500">
+                GitHub data synced {new Date(project.githubSyncedAt).toLocaleString()}
+              </span>
+            )}
+          </div>
+        )}
+
         <p className="mt-6 whitespace-pre-wrap text-slate-300">{project.description}</p>
+
+        {user && (
+          <div className="mt-4">
+            <Link
+              to={`/community/new?project=${project.id}`}
+              className="inline-flex text-sm font-medium text-brand-400 hover:underline"
+            >
+              Post in community about this project →
+            </Link>
+          </div>
+        )}
+
+        {project.seekingReview && (
+          <div className="mt-4 rounded-lg border border-brand-500/35 bg-brand-500/10 px-4 py-3">
+            <p className="text-sm text-brand-100">The maintainer is open to review, feedback, or collaboration.</p>
+            {!user && (
+              <Link to="/login" className="mt-2 inline-block text-sm text-brand-400 hover:underline">Log in to message @{project.owner.username}</Link>
+            )}
+            {user && user.id !== project.owner.id && (
+              <Link to={`/inbox/${project.owner.id}`} className="mt-2 inline-block text-sm font-medium text-brand-400 hover:underline">
+                Message @{project.owner.username} directly →
+              </Link>
+            )}
+          </div>
+        )}
+
+        {isOwner && (
+          <div className="mt-6 rounded-lg border border-slate-700 bg-surface-900/60 p-4">
+            <h3 className="font-mono text-sm font-medium text-slate-400">Visibility & review</h3>
+            <div className="mt-3 space-y-3">
+              <select value={editVis} onChange={(e) => setEditVis(e.target.value as typeof editVis)} className="input w-full max-w-md">
+                <option value="PUBLIC">Public</option>
+                <option value="FOLLOWERS_ONLY">Followers only (accepted followers)</option>
+                <option value="PRIVATE">Private (you + teammates)</option>
+              </select>
+              <label className="flex items-center gap-2 text-sm text-slate-300">
+                <input type="checkbox" checked={editSeeking} onChange={(e) => setEditSeeking(e.target.checked)} />
+                Open to review / allow DMs from this page
+              </label>
+              <button type="button" onClick={handleOwnerSave} className="btn-secondary text-sm" disabled={ownerSaving}>
+                {ownerSaving ? 'Saving…' : 'Save settings'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!project.githubFullName && (
+          <p className="mt-6 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-200">
+            This project has no linked GitHub repository (legacy). New projects require a public repo.
+          </p>
+        )}
+
+        {project.githubFullName && !repo && project.githubHtmlUrl && (
+          <p className="mt-6 text-sm text-slate-500">
+            Full GitHub metadata could not be loaded.{' '}
+            <a href={project.githubHtmlUrl} target="_blank" rel="noopener noreferrer" className="text-brand-400 hover:underline">
+              Open the repository on GitHub
+            </a>
+            .
+          </p>
+        )}
+
+        {repo && (
+          <div className="mt-8 space-y-8 border-t border-slate-700 pt-8">
+            <h2 className="font-mono text-lg font-medium text-slate-200">From GitHub</h2>
+
+            {repo.description && (
+              <div>
+                <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Repository description</h3>
+                <p className="mt-1 text-slate-300">{repo.description}</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                ['Stars', repo.stargazers_count],
+                ['Forks', repo.forks_count],
+                ['Open issues', repo.open_issues_count],
+                ['Watchers', repo.watchers_count ?? repo.subscribers_count],
+              ].map(([label, val]) => (
+                <div key={String(label)} className="rounded-lg bg-surface-800/80 px-3 py-2">
+                  <div className="text-xs text-slate-500">{label}</div>
+                  <div className="font-mono text-lg text-slate-100">{val ?? '—'}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap gap-4 text-sm text-slate-400">
+              {repo.default_branch && (
+                <span>Default branch: <code className="text-brand-400">{repo.default_branch}</code></span>
+              )}
+              {repo.language && <span>Primary language: <span className="text-slate-200">{repo.language}</span></span>}
+              {repo.visibility && <span>Visibility: {repo.visibility}</span>}
+              {repo.pushed_at && <span>Last push: {new Date(repo.pushed_at).toLocaleDateString()}</span>}
+              {repo.size != null && <span>Size: {repo.size} KB (GitHub index)</span>}
+            </div>
+
+            {repo.homepage && (
+              <div>
+                <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Homepage</h3>
+                <a href={repo.homepage} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-brand-400 hover:underline">
+                  {repo.homepage}
+                </a>
+              </div>
+            )}
+
+            {repo.topics && repo.topics.length > 0 && (
+              <div>
+                <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Topics</h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {repo.topics.map((t) => (
+                    <span key={t} className="rounded-full bg-surface-800 px-2.5 py-0.5 text-xs text-slate-300">{t}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {repo.license && (repo.license.name || repo.license.spdx_id) && (
+              <div>
+                <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">License</h3>
+                <p className="mt-1 text-slate-300">{repo.license.name} {repo.license.spdx_id && repo.license.spdx_id !== 'NOASSERTION' ? `(${repo.license.spdx_id})` : ''}</p>
+              </div>
+            )}
+
+            {repo.owner?.login && (
+              <div className="flex items-center gap-3">
+                {repo.owner.avatar_url && (
+                  <img src={repo.owner.avatar_url} alt="" className="h-10 w-10 rounded-full border border-slate-600" />
+                )}
+                <div>
+                  <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Owner on GitHub</h3>
+                  {repo.owner.html_url ? (
+                    <a href={repo.owner.html_url} target="_blank" rel="noopener noreferrer" className="text-brand-400 hover:underline">
+                      @{repo.owner.login}
+                    </a>
+                  ) : (
+                    <span className="text-slate-300">@{repo.owner.login}</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {hasLanguages && (
+              <div>
+                <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Languages</h3>
+                <div className="mt-3">
+                  <LanguageBars languages={languages} />
+                </div>
+              </div>
+            )}
+
+            {gh?.contributors && gh.contributors.length > 0 && (
+              <div>
+                <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Contributors</h3>
+                <ul className="mt-3 flex flex-wrap gap-3">
+                  {gh.contributors.map((c) => (
+                    <li key={c.login}>
+                      {c.html_url ? (
+                        <a href={c.html_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-300 hover:text-brand-400">
+                          {c.avatar_url && <img src={c.avatar_url} alt="" className="h-8 w-8 rounded-full" />}
+                          <span>@{c.login}</span>
+                          {c.contributions != null && <span className="text-xs text-slate-500">({c.contributions})</span>}
+                        </a>
+                      ) : (
+                        <span className="text-sm text-slate-400">@{c.login}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {gh?.readme && (
+              <div>
+                <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">README</h3>
+                <div className="mt-2 max-h-[min(70vh,32rem)] overflow-auto rounded-lg border border-slate-700 bg-surface-950 p-4">
+                  <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-slate-300">{gh.readme}</pre>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {project.members.length > 0 && (
           <div className="mt-8 border-t border-slate-700 pt-6">
-            <h2 className="font-mono text-sm font-medium text-slate-400">Team</h2>
+            <h2 className="font-mono text-sm font-medium text-slate-400">Team on Programmers World</h2>
             <ul className="mt-2 space-y-2">
               <li className="flex items-center gap-2 text-sm">
                 <span className="rounded bg-brand-500/20 px-2 py-0.5 text-brand-400">owner</span>
@@ -104,7 +418,7 @@ export default function ProjectDetail() {
                 <option value="ui_ux">UI/UX</option>
                 <option value="fullstack">Fullstack</option>
               </select>
-              <button onClick={handleJoin} className="btn-primary" disabled={joining}>{joining ? 'Joining…' : 'Join'}</button>
+              <button type="button" onClick={handleJoin} className="btn-primary" disabled={joining}>{joining ? 'Joining…' : 'Join'}</button>
             </div>
           </div>
         )}
