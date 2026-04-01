@@ -113,12 +113,15 @@ enum ChallengeDifficulty {
 }
 
 model ChallengeSubmission {
-  id          String   @id @default(cuid())
-  challengeId String   @map("challenge_id")
-  userId      String   @map("user_id")
-  solutionUrl String?  @map("solution_url") // e.g. GitHub link or code snippet ref
-  points      Int      @default(0)
-  submittedAt DateTime @default(now()) @map("submitted_at")
+  id               String   @id @default(cuid())
+  challengeId      String   @map("challenge_id")
+  userId           String   @map("user_id")
+  solutionUrl      String?  @map("solution_url") // e.g. GitHub link or code snippet ref
+  repoFullName     String?  @map("repo_full_name") // owner/repo when verified public
+  repoPublic       Boolean? @map("repo_public")
+  repoDescription  String?  @map("repo_description") @db.VarChar(512)
+  points           Int      @default(0)
+  submittedAt      DateTime @default(now()) @map("submitted_at")
 
   challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -127,14 +130,18 @@ model ChallengeSubmission {
 
 // --- Community (Discussions) ---
 model Post {
-  id        String   @id @default(cuid())
-  title     String
-  body      String
-  section   PostSection @default(GENERAL)
-  authorId  String   @map("author_id")
-  solved    Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id              String      @id @default(cuid())
+  title           String
+  body            String
+  section         PostSection @default(GENERAL)
+  authorId        String      @map("author_id")
+  solved          Boolean     @default(false)
+  repoUrl         String?     @map("repo_url")
+  repoFullName    String?     @map("repo_full_name")
+  repoPublic      Boolean?    @map("repo_public")
+  repoDescription String?     @map("repo_description") @db.VarChar(512)
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
 
   author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   votes    PostVote[]
