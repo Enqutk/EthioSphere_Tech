@@ -6,7 +6,7 @@ import { getStoredToken } from '@/components/AuthProvider';
 
 export default function ProfileEdit() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, ready, updateSessionUser } = useAuth();
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
@@ -16,20 +16,32 @@ export default function ProfileEdit() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!ready) return;
     if (!user) {
-      navigate('/login');
+      navigate('/login', { state: { from: '/profile/edit' } });
+      setLoading(false);
       return;
     }
     const token = getStoredToken();
-    if (!token) return;
-    usersApi.me(token).then((data) => {
-      const d = data as { name?: string; bio?: string; githubUrl?: string; skills?: string[] };
-      setName(d.name ?? '');
-      setBio(d.bio ?? '');
-      setGithubUrl(d.githubUrl ?? '');
-      setSkills(Array.isArray(d.skills) ? d.skills.join(', ') : '');
-    }).finally(() => setLoading(false));
-  }, [user, navigate]);
+    if (!token) {
+      navigate('/login', { state: { from: '/profile/edit' } });
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError('');
+    usersApi
+      .me(token)
+      .then((data) => {
+        const d = data as { name?: string; bio?: string; githubUrl?: string; skills?: string[] };
+        setName(d.name ?? '');
+        setBio(d.bio ?? '');
+        setGithubUrl(d.githubUrl ?? '');
+        setSkills(Array.isArray(d.skills) ? d.skills.join(', ') : '');
+      })
+      .catch(() => setError('Could not load your profile. Try logging in again.'))
+      .finally(() => setLoading(false));
+  }, [user, ready, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,13 +50,14 @@ export default function ProfileEdit() {
     setSaving(true);
     setError('');
     try {
-      await usersApi.updateMe(token, {
+      const updated = await usersApi.updateMe(token, {
         name: name.trim(),
         bio: bio.trim() || undefined,
         githubUrl: githubUrl.trim() || undefined,
         skills: skills.split(',').map((s) => s.trim()).filter(Boolean),
       });
-      navigate(`/profile/${user?.username}`);
+      updateSessionUser(updated);
+      navigate(`/profile/${updated.username}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to update');
     } finally {
@@ -52,7 +65,9 @@ export default function ProfileEdit() {
     }
   }
 
-  if (!user || loading) return <div className="mx-auto max-w-xl px-6 py-16 text-center text-slate-400">Loading…</div>;
+  if (!ready || !user || loading) {
+    return <div className="mx-auto max-w-xl px-6 py-16 text-center text-slate-400">Loading…</div>;
+  }
 
   return (
     <div className="mx-auto max-w-xl px-6 py-12">
