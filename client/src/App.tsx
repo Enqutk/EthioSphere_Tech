@@ -16,6 +16,7 @@ import ChallengeDetail from './pages/ChallengeDetail';
 import Inbox from './pages/Inbox';
 import InboxChat from './pages/InboxChat';
 import Admin from './pages/Admin';
+import FindBuddies from './pages/FindBuddies';
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/new" element={<ProjectNew />} />
           <Route path="/projects/:id" element={<ProjectDetail />} />
+          <Route path="/buddies" element={<FindBuddies />} />
           <Route path="/community" element={<Community />} />
           <Route path="/community/new" element={<CommunityNew />} />
           <Route path="/community/:id" element={<CommunityPost />} />
