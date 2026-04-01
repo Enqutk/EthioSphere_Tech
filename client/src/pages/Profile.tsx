@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { usersApi } from '@/lib/api';
+import { followApi, usersApi } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
 
 type Profile = {
@@ -12,7 +12,23 @@ type Profile = {
   rank: string;
   githubUrl?: string | null;
   skills?: string[];
-  projectsOwned?: { id: string; title: string; status: string; type?: string }[];
+  followersCount?: number;
+  followingCount?: number;
+  followForViewer?: {
+    direction: string;
+    status: string | null;
+    id: string | null;
+  } | null;
+  projectsOwned?: {
+    id: string;
+    title: string;
+    status: string;
+    type?: string;
+    visibility?: string;
+    seekingReview?: boolean;
+    githubFullName?: string | null;
+    githubHtmlUrl?: string | null;
+  }[];
   badges?: { badgeType: string; earnedAt: string }[];
 };
 
@@ -42,14 +58,21 @@ export default function Profile() {
     setProfile(null);
     const u = username.trim().toLowerCase();
     usersApi
-      .getByUsername(u)
+      .getByUsername(u, token)
       .then((data) => setProfile(data as Profile))
       .catch((err) => {
         setProfile(null);
         setError(err instanceof Error ? err.message : 'Could not load profile');
       })
       .finally(() => setLoading(false));
-  }, [username]);
+  }, [username, token]);
+
+  async function reloadProfile() {
+    if (!username?.trim()) return;
+    const u = username.trim().toLowerCase();
+    const data = await usersApi.getByUsername(u, token);
+    setProfile(data as Profile);
+  }
 
   if (loading) return <div className="mx-auto max-w-2xl px-6 py-16 text-center text-slate-400">Loading profile…</div>;
   if (error || !profile) {
@@ -82,6 +105,9 @@ export default function Profile() {
           <div className="min-w-0 flex-1">
             <h1 className="font-mono text-2xl font-semibold text-slate-100">{profile.name}</h1>
             <p className="text-slate-400">@{profile.username}</p>
+            <p className="mt-1 text-xs text-slate-500">
+              {profile.followersCount ?? 0} followers · {profile.followingCount ?? 0} following
+            </p>
             <span className="mt-2 inline-block rounded-full bg-brand-500/20 px-3 py-0.5 text-sm font-medium text-brand-400">{RANK_LABELS[profile.rank] || profile.rank}</span>
             {profile.bio ? (
               <p className="mt-3 text-slate-300">{profile.bio}</p>
@@ -95,9 +121,89 @@ export default function Profile() {
               <a href={profile.githubUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-brand-400 hover:underline">GitHub →</a>
             )}
           </div>
-          {isOwn && (
-            <Link to="/profile/edit" className="btn-secondary">Edit profile</Link>
-          )}
+          <div className="flex flex-col gap-2 sm:items-end">
+            {isOwn && (
+              <Link to="/profile/edit" className="btn-secondary">Edit profile</Link>
+            )}
+            {!isOwn && token && (
+              <div className="flex flex-wrap gap-2">
+                <Link to={`/inbox/${profile.id}`} className="btn-secondary text-sm">Message</Link>
+                {profile.followForViewer?.direction === 'none' || !profile.followForViewer ? (
+                  <button
+                    type="button"
+                    className="btn-primary text-sm"
+                    onClick={async () => {
+                      await followApi.follow(token, profile.username);
+                      await reloadProfile();
+                    }}
+                  >
+                    Request follow
+                  </button>
+                ) : null}
+                {profile.followForViewer?.direction === 'outbound' && profile.followForViewer.status === 'PENDING' && (
+                  <button
+                    type="button"
+                    className="btn-secondary text-sm"
+                    onClick={async () => {
+                      await followApi.unfollow(token, profile.username);
+                      await reloadProfile();
+                    }}
+                  >
+                    Cancel request
+                  </button>
+                )}
+                {profile.followForViewer?.direction === 'outbound' && profile.followForViewer.status === 'ACCEPTED' && (
+                  <button
+                    type="button"
+                    className="btn-secondary text-sm"
+                    onClick={async () => {
+                      await followApi.unfollow(token, profile.username);
+                      await reloadProfile();
+                    }}
+                  >
+                    Unfollow
+                  </button>
+                )}
+                {profile.followForViewer?.direction === 'outbound' && profile.followForViewer.status === 'REJECTED' && (
+                  <button
+                    type="button"
+                    className="btn-primary text-sm"
+                    onClick={async () => {
+                      await followApi.follow(token, profile.username);
+                      await reloadProfile();
+                    }}
+                  >
+                    Request follow
+                  </button>
+                )}
+                {profile.followForViewer?.direction === 'inbound' && profile.followForViewer.status === 'PENDING' && profile.followForViewer.id && (
+                  <>
+                    <span className="self-center text-xs text-amber-400">Wants to follow you</span>
+                    <button
+                      type="button"
+                      className="btn-primary text-sm"
+                      onClick={async () => {
+                        await followApi.accept(token, profile.followForViewer!.id!);
+                        await reloadProfile();
+                      }}
+                    >
+                      Accept
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary text-sm"
+                      onClick={async () => {
+                        await followApi.reject(token, profile.followForViewer!.id!);
+                        await reloadProfile();
+                      }}
+                    >
+                      Decline
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         <div className="mt-6 border-t border-slate-700 pt-6">
           <h2 className="font-mono text-sm font-medium text-slate-400">Skills</h2>
@@ -120,9 +226,17 @@ export default function Profile() {
             <h2 className="font-mono text-sm font-medium text-slate-400">Projects</h2>
             <ul className="mt-2 space-y-2">
               {profile.projectsOwned.map((p) => (
-                <li key={p.id}>
+                <li key={p.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
                   <Link to={`/projects/${p.id}`} className="text-brand-400 hover:underline">{p.title}</Link>
-                  <span className="ml-2 text-xs text-slate-500">{p.status}</span>
+                  <span className="text-xs text-slate-500">{p.status}</span>
+                  {p.seekingReview && (
+                    <span className="text-xs text-brand-400">review</span>
+                  )}
+                  {p.githubHtmlUrl && p.githubFullName && (
+                    <a href={p.githubHtmlUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-slate-500 hover:text-brand-400">
+                      {p.githubFullName} ↗
+                    </a>
+                  )}
                 </li>
               ))}
             </ul>
