@@ -9,6 +9,7 @@ export type User = {
   avatarUrl?: string | null;
   bio?: string | null;
   rank: string;
+  /** Set at registration when GitHub is linked */
   githubUrl?: string | null;
   skills?: string[];
 };
@@ -39,8 +40,8 @@ export async function api<T>(
 }
 
 export const authApi = {
-  register: (body: { email: string; password: string; name: string; username: string }) =>
-    api<{ user: User; token: string }>('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
+  register: (body: { email: string; password: string; name: string; username: string; githubUrl?: string }) =>
+    api<{ user: User; token: string; githubNote?: string }>('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
   login: (body: { email: string; password: string }) =>
     api<{ user: User; token: string }>('/api/auth/login', { method: 'POST', body: JSON.stringify(body) }),
 };
@@ -80,7 +81,7 @@ export const postsApi = {
     return api<unknown[]>(`/api/posts${q ? `?${q}` : ''}`);
   },
   get: (id: string) => api<Record<string, unknown>>(`/api/posts/${id}`),
-  create: (token: string, body: { title: string; body: string; section?: string }) =>
+  create: (token: string, body: { title: string; body: string; section?: string; repoUrl?: string }) =>
     api<unknown>('/api/posts', { method: 'POST', body: JSON.stringify(body), token }),
   addComment: (token: string, postId: string, body: { body: string; isSolution?: boolean }) =>
     api<unknown>(`/api/posts/${postId}/comments`, { method: 'POST', body: JSON.stringify(body), token }),
