@@ -27,8 +27,12 @@ export async function api<T>(
   const res = await fetch(url, { ...init, headers });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const extra = [data.hint, data.details].filter(Boolean).join(' — ');
-    const msg = data.error || data.message || res.statusText;
+    const validationErrors = (data as { errors?: { msg?: string; path?: string }[] }).errors;
+    let msg = (data as { error?: string; message?: string }).error || (data as { message?: string }).message || res.statusText;
+    if (Array.isArray(validationErrors) && validationErrors.length) {
+      msg = validationErrors.map((e) => e.msg || String(e)).join(' ');
+    }
+    const extra = [(data as { hint?: string }).hint, (data as { details?: string }).details].filter(Boolean).join(' — ');
     throw new Error(extra ? `${msg} (${extra})` : msg);
   }
   return data as T;
