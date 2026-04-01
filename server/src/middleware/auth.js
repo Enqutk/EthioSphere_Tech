@@ -16,40 +16,65 @@ export function verifyToken(token) {
 }
 
 export async function requireAuth(req, res, next) {
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!token) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-  const decoded = verifyToken(token);
-  if (!decoded) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
-  }
-  const user = await prisma.user.findUnique({
-    where: { id: decoded.userId },
-    select: { id: true, email: true, username: true, name: true, rank: true, avatarUrl: true },
-  });
-  if (!user) {
-    return res.status(401).json({ error: 'User not found' });
-  }
-  req.user = user;
-  next();
-}
-
-export function optionalAuth(req, res, next) {
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!token) return next();
-  const decoded = verifyToken(token);
-  if (!decoded) return next();
-  prisma.user
-    .findUnique({
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!token) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    const decoded = verifyToken(token);
+    if (!decoded?.userId) {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+    const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       select: { id: true, email: true, username: true, name: true, rank: true, avatarUrl: true },
-    })
-    .then((user) => {
-      req.user = user || undefined;
-      next();
-    })
-    .catch(() => next());
+    });
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+    req.user = user;
+    next();
+  } catch (err) {
+    console.error('requireAuth', err);
+    const dev = process.env.NODE_ENV !== 'production';
+    const msg = String(err.message || err);
+    const unreachable = /reach database server at/i.test(msg);
+    const hint = unreachable
+      ? 'Wake the project in the Neon console and verify DATABASE_URL in server/.env (sslmode=require; try without channel_binding).'
+      : err.code === 'P2022' || /column .* does not exist/i.test(msg)
+        ? 'Run `npx prisma db push` in the server folder.'
+        : undefined;
+    return res.status(500).json({
+      error: unreachable ? 'Database unavailable' : 'Authentication failed',
+      ...(dev && { details: msg, code: err.code }),
+      ...(hint && { hint }),
+    });
+  }
+}
+
+/** Attaches req.user when a valid Bearer token is present; never fails the request */
+export async function optionalAuth(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!token) {
+      req.user = undefined;
+      return next();
+    }
+    const decoded = verifyToken(token);
+    if (!decoded?.userId) {
+      req.user = undefined;
+      return next();
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, email: true, username: true, name: true, rank: true, avatarUrl: true },
+    });
+    req.user = user ?? undefined;
+  } catch (err) {
+    console.error('optionalAuth', err);
+    req.user = undefined;
+  }
+  next();
 }
