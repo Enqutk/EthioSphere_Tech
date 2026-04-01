@@ -10,6 +10,10 @@ type Post = {
   body: string;
   section: string;
   solved: boolean;
+  repoUrl?: string | null;
+  repoFullName?: string | null;
+  repoPublic?: boolean | null;
+  repoDescription?: string | null;
   author: { id: string; name: string; username: string; avatarUrl?: string | null };
   comments: { id: string; body: string; isSolution: boolean; author: { id: string; name: string; username: string }; createdAt: string }[];
 };
@@ -61,6 +65,15 @@ export default function CommunityPost() {
           {post.solved && <span className="text-green-400">Solved</span>}
         </div>
         <p className="mt-6 whitespace-pre-wrap text-slate-300">{post.body}</p>
+        {post.repoPublic && post.repoUrl && post.repoFullName && (
+          <div className="mt-6 rounded-lg border border-brand-500/30 bg-brand-500/5 p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-brand-400">Public repository</p>
+            <a href={post.repoUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block font-mono text-sm text-brand-300 hover:underline">
+              {post.repoFullName} →
+            </a>
+            {post.repoDescription && <p className="mt-2 text-sm text-slate-400">{post.repoDescription}</p>}
+          </div>
+        )}
       </div>
       <div className="mt-8">
         <h2 className="font-mono text-lg font-medium text-slate-200">Comments ({post.comments?.length ?? 0})</h2>
