@@ -22,6 +22,7 @@ export default function Inbox() {
     { id: string; follower: { id: string; name: string; username: string; avatarUrl?: string | null } }[]
   >([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     if (!ready) return;
@@ -31,13 +32,27 @@ export default function Inbox() {
     }
     const token = getStoredToken();
     if (!token) return;
+    let cancelled = false;
     setLoading(true);
+    setLoadError('');
     Promise.all([messagesApi.inbox(token), followApi.incoming(token)])
       .then(([t, r]) => {
+        if (cancelled) return;
         setThreads(t);
         setRequests(r);
       })
-      .finally(() => setLoading(false));
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : 'Could not load inbox');
+        setThreads([]);
+        setRequests([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [user, ready, navigate]);
 
   async function handleAccept(id: string) {
@@ -77,6 +92,11 @@ export default function Inbox() {
         </button>
       </div>
 
+      {loadError && (
+        <p className="mt-6 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300" role="alert">
+          {loadError}
+        </p>
+      )}
       {loading ? (
         <p className="mt-8 text-center text-slate-500">Loading…</p>
       ) : tab === 'messages' ? (
