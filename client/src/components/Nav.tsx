@@ -30,7 +30,7 @@ export function Nav() {
           {ready && (
             user ? (
               <>
-                <Link to={`/profile/${user.username}`} className="rounded-lg px-3 py-2 text-sm text-slate-400 hover:text-slate-200">
+                <Link to={`/profile/${user.username.toLowerCase()}`} className="rounded-lg px-3 py-2 text-sm text-slate-400 hover:text-slate-200">
                   {user.name}
                 </Link>
                 <button type="button" onClick={logout} className="btn-secondary ml-2 text-sm">
