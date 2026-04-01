@@ -10,6 +10,7 @@ type Post = {
   solved: boolean;
   repoFullName?: string | null;
   repoPublic?: boolean | null;
+  project?: { id: string; title: string; githubFullName?: string | null } | null;
   author: { id: string; name: string; username: string };
   _count?: { comments: number };
   upvotes?: number;
@@ -52,19 +53,32 @@ export default function Community() {
         <ul className="mt-8 space-y-4">
           {posts.map((p) => (
             <li key={p.id}>
-              <Link to={`/community/${p.id}`} className="card block p-6 transition hover:border-brand-500/50">
-                <h2 className="font-mono font-semibold text-slate-100">{p.title}</h2>
-                <p className="mt-1 line-clamp-2 text-sm text-slate-400">{p.body}</p>
+              <div className="card p-6 transition hover:border-brand-500/50">
+                <Link to={`/community/${p.id}`} className="block">
+                  <h2 className="font-mono font-semibold text-slate-100">{p.title}</h2>
+                  <p className="mt-1 line-clamp-2 text-sm text-slate-400">{p.body}</p>
+                </Link>
                 <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">
-                  <span>{SECTIONS[p.section] ?? p.section}</span>
+                  <Link to={`/community/${p.id}`} className="hover:text-brand-400">{SECTIONS[p.section] ?? p.section}</Link>
                   <span>by @{p.author.username}</span>
                   {p.solved && <span className="text-green-400">Solved</span>}
+                  {p.project && (
+                    <Link
+                      to={`/projects/${p.project.id}`}
+                      className="rounded bg-brand-500/15 px-2 py-0.5 font-mono text-brand-400 hover:bg-brand-500/25"
+                    >
+                      Project: {p.project.title}
+                      {p.project.githubFullName ? ` · ${p.project.githubFullName}` : ''}
+                    </Link>
+                  )}
                   {p.repoPublic && p.repoFullName && (
                     <span className="rounded bg-slate-700/80 px-2 py-0.5 font-mono text-slate-300">📂 {p.repoFullName}</span>
                   )}
-                  {p._count?.comments != null && <span>{p._count.comments} comments</span>}
+                  {p._count?.comments != null && (
+                    <Link to={`/community/${p.id}`} className="hover:text-brand-400">{p._count.comments} comments</Link>
+                  )}
                 </div>
-              </Link>
+              </div>
             </li>
           ))}
         </ul>
