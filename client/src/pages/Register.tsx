@@ -39,9 +39,11 @@ export default function Register() {
 
   return (
     <div className="mx-auto max-w-md px-6 py-16">
-      <h1 className="font-mono text-2xl font-semibold text-slate-100">Create account</h1>
-      <p className="mt-2 text-slate-400">Join Programmers World and start building.</p>
-      <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+      <div className="card p-8">
+        <p className="label-system">Auth · register</p>
+        <h1 className="mt-2 font-mono text-2xl font-semibold text-slate-100">Create account</h1>
+        <p className="mt-2 text-slate-400">Join and get a profile, projects, challenges, and community in one place.</p>
+        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
         {error && (
           <div className="rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div>
         )}
@@ -80,6 +82,7 @@ export default function Register() {
           {loading ? 'Creating account…' : 'Sign up'}
         </button>
       </form>
+      </div>
       <p className="mt-6 text-center text-sm text-slate-400">
         Already have an account? <Link to="/login" className="text-brand-400 hover:underline">Log in</Link>
       </p>
