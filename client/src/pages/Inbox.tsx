@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { followApi, messagesApi } from '@/lib/api';
-import { useAuth } from '@/components/AuthProvider';
-import { getStoredToken } from '@/components/AuthProvider';
+import { followApi, messagesApi } from '@/shared/api';
+import { useAuth } from '@/shared/components/AuthProvider';
+import { getStoredToken } from '@/shared/components/AuthProvider';
 
 type Tab = 'messages' | 'requests';
 
