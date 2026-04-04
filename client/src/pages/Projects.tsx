@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { projectsApi } from '@/lib/api';
-import { getStoredToken } from '@/components/AuthProvider';
+import { projectsApi } from '@/shared/api';
+import { getStoredToken } from '@/shared/components/AuthProvider';
 
 type Project = {
   id: string;
