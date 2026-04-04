@@ -20,6 +20,31 @@ A unified platform for programmers to **learn**, **build**, **compete**, and **c
 | Database  | PostgreSQL + Prisma |
 | Auth      | JWT, bcrypt          |
 
+## Repository layout
+
+### Client (`client/src/`)
+
+| Path | Role |
+|------|------|
+| `app/` | App shell: `App.tsx` (routes), `providers.tsx` (AuthProvider and future global providers) |
+| `pages/` | Route-level screens (one file per URL segment group) |
+| `shared/api/` | `http.ts` (fetch wrapper) + domain modules (`auth`, `users`, `projects`, `messages`, `follow`, `challenges`, `admin`, `posts`) — import from `@/shared/api` |
+| `shared/components/` | Shared UI: `Nav`, `AuthProvider`, `FollowCreatorActions` — import from `@/shared/components` |
+| `main.tsx` | Vite entry: `BrowserRouter` → `AppProviders` → `App` |
+
+Path alias: `@/*` → `src/*` (see `client/tsconfig.json`).
+
+### Server (`server/src/`)
+
+| Path | Role |
+|------|------|
+| `index.js` | Process entry: `createApp()`, then `listen` |
+| `app.js` | `createApp()` — middleware, `/api/*` route mounting, 404 and error handler |
+| `config/` | Port, CORS (`CLIENT_ORIGIN` or dynamic origin in dev) |
+| `routes/` | Express routers per domain |
+| `middleware/` | JWT auth helpers |
+| `lib/` | Prisma client, GitHub helpers, DM thread helpers |
+
 ## Quick start
 
 ### Prerequisites
@@ -96,7 +121,7 @@ npm run dev
 - Frontend: [http://localhost:3000](http://localhost:3000)
 - API: [http://localhost:4000](http://localhost:4000)
 
-**Important:** The Next.js app proxies `/api/*` to the backend when `NEXT_PUBLIC_API_URL` is set. So the frontend must be able to reach the backend (same machine or correct URL).
+**Important:** The Vite dev server proxies `/api/*` to the backend (`vite.config.ts`). Set `VITE_API_URL` if the API is not on the default port.
 
 From the root you can also run both with:
 
