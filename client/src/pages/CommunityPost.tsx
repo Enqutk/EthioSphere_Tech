@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { adminApi, postsApi } from '@/lib/api';
-import { useAuth, getStoredToken } from '@/components/AuthProvider';
-import { FollowCreatorActions } from '@/components/FollowCreatorActions';
+import { adminApi, postsApi } from '@/shared/api';
+import { useAuth, getStoredToken } from '@/shared/components/AuthProvider';
+import { FollowCreatorActions } from '@/shared/components/FollowCreatorActions';
 
 type Post = {
   id: string;
