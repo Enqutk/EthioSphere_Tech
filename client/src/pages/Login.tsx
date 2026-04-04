@@ -40,8 +40,8 @@ export default function Login() {
 
   return (
     <div className="mx-auto max-w-md px-6 py-16">
-      <div className="rounded-2xl border border-slate-800 bg-surface-900/40 p-8 shadow-xl shadow-black/20">
-        <p className="text-xs font-medium uppercase tracking-widest text-brand-400">Programmers World</p>
+      <div className="card p-8">
+        <p className="label-system">Auth · session</p>
         <h1 className="mt-2 font-mono text-2xl font-semibold text-slate-100">Welcome back</h1>
         <p className="mt-2 text-slate-400">
           Sign in to keep building—projects, challenges, and community are all here when you are.
