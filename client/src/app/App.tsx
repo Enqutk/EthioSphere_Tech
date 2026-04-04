@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
+import { AppFrame } from '@/shared/components/AppFrame';
 import { Nav } from '@/shared/components/Nav';
 import Home from '@/pages/Home';
 import Login from '@/pages/Login';
@@ -20,7 +21,7 @@ import FindBuddies from '@/pages/FindBuddies';
 
 export default function App() {
   return (
-    <div className="min-h-screen font-sans">
+    <AppFrame>
       <Nav />
       <main className="min-h-[calc(100vh-4rem)]">
         <Routes>
@@ -43,6 +44,6 @@ export default function App() {
           <Route path="/admin" element={<Admin />} />
         </Routes>
       </main>
-    </div>
+    </AppFrame>
   );
 }
