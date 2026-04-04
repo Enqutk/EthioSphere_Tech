@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { challengesApi } from '@/lib/api';
+import { challengesApi } from '@/shared/api';
 
 type Challenge = {
   id: string;
