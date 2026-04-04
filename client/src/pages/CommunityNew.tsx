@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { postsApi, projectsApi } from '@/lib/api';
-import { useAuth } from '@/components/AuthProvider';
-import { getStoredToken } from '@/components/AuthProvider';
+import { postsApi, projectsApi } from '@/shared/api';
+import { useAuth } from '@/shared/components/AuthProvider';
+import { getStoredToken } from '@/shared/components/AuthProvider';
 
 const SECTIONS = [
   { value: 'GENERAL', label: 'General' }, { value: 'DEBUG_HELP', label: 'Debug help' }, { value: 'PROJECT_FEEDBACK', label: 'Project feedback' },
