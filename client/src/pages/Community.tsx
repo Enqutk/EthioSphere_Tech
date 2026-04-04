@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { postsApi } from '@/lib/api';
+import { postsApi } from '@/shared/api';
 
 type Post = {
   id: string;
