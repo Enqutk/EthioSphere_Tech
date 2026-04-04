@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { projectsApi } from '@/lib/api';
-import { useAuth } from '@/components/AuthProvider';
-import { getStoredToken } from '@/components/AuthProvider';
+import { projectsApi } from '@/shared/api';
+import { useAuth } from '@/shared/components/AuthProvider';
+import { getStoredToken } from '@/shared/components/AuthProvider';
 
 export default function ProjectNew() {
   const navigate = useNavigate();
