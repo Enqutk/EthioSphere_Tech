@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { challengesApi } from '@/lib/api';
-import { useAuth, getStoredToken } from '@/components/AuthProvider';
+import { challengesApi } from '@/shared/api';
+import { useAuth, getStoredToken } from '@/shared/components/AuthProvider';
 
 type TimelineMeta = {
   submissionsOpen: boolean;
@@ -65,11 +65,6 @@ export default function ChallengeDetail() {
   const [tick, setTick] = useState(0);
 
   const token = authToken ?? getStoredToken();
-
-  const loadChallenge = () => {
-    if (!id) return;
-    challengesApi.get(id, token).then((data) => setChallenge(data as Challenge));
-  };
 
   useEffect(() => {
     if (!id) return;
