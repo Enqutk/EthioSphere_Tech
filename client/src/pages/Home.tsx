@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/components/AuthProvider';
+import { useAuth } from '@/shared/components/AuthProvider';
 
 export default function Home() {
   const { user, ready } = useAuth();
