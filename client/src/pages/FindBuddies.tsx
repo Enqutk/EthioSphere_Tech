@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { usersApi, type DiscoverUser } from '@/lib/api';
-import { getStoredToken, useAuth } from '@/components/AuthProvider';
-import { FollowCreatorActions } from '@/components/FollowCreatorActions';
+import { usersApi, type DiscoverUser } from '@/shared/api';
+import { getStoredToken, useAuth } from '@/shared/components/AuthProvider';
+import { FollowCreatorActions } from '@/shared/components/FollowCreatorActions';
 
 const SECTIONS: Record<string, string> = {
   GENERAL: 'General',
