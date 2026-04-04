@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { followApi, usersApi } from '@/lib/api';
-import { useAuth } from '@/components/AuthProvider';
+import { followApi, usersApi } from '@/shared/api';
+import { useAuth } from '@/shared/components/AuthProvider';
 
 type Profile = {
   id: string;
