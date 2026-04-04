@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { messagesApi } from '@/lib/api';
-import { useAuth } from '@/components/AuthProvider';
-import { getStoredToken } from '@/components/AuthProvider';
+import { messagesApi } from '@/shared/api';
+import { useAuth } from '@/shared/components/AuthProvider';
+import { getStoredToken } from '@/shared/components/AuthProvider';
 
 type MsgRow = { id: string; body: string; createdAt: string; senderId: string };
 
