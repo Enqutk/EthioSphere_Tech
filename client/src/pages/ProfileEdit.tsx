@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/components/AuthProvider';
-import { usersApi } from '@/lib/api';
-import { getStoredToken } from '@/components/AuthProvider';
+import { useAuth } from '@/shared/components/AuthProvider';
+import { usersApi } from '@/shared/api';
+import { getStoredToken } from '@/shared/components/AuthProvider';
 
 export default function ProfileEdit() {
   const navigate = useNavigate();
