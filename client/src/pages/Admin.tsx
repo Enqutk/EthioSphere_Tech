@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { adminApi, challengesApi } from '@/lib/api';
-import { useAuth, getStoredToken } from '@/components/AuthProvider';
+import { adminApi, challengesApi } from '@/shared/api';
+import { useAuth, getStoredToken } from '@/shared/components/AuthProvider';
 
 type Overview = { users: number; posts: number; challenges: number; projects: number };
 type AdminPost = {
