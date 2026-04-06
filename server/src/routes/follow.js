@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { sendRouteError } from '../lib/dbErrors.js';
 import { requireAuth } from '../middleware/auth.js';
 
 export const followRouter = Router();
@@ -16,8 +17,7 @@ followRouter.get('/requests/incoming', requireAuth, async (req, res) => {
     });
     res.json(rows);
   } catch (err) {
-    console.error('GET /api/follow/requests/incoming', err);
-    res.status(500).json({ error: 'Could not load requests' });
+    sendRouteError(res, err, 'GET /api/follow/requests/incoming', 'Could not load requests');
   }
 });
 
@@ -35,8 +35,7 @@ followRouter.post('/requests/:id/accept', requireAuth, async (req, res) => {
     });
     res.json(updated);
   } catch (err) {
-    console.error('POST /api/follow/requests/:id/accept', err);
-    res.status(500).json({ error: 'Could not accept' });
+    sendRouteError(res, err, 'POST /api/follow/requests/:id/accept', 'Could not accept');
   }
 });
 
@@ -53,8 +52,7 @@ followRouter.post('/requests/:id/reject', requireAuth, async (req, res) => {
     });
     res.json({ message: 'Rejected' });
   } catch (err) {
-    console.error('POST /api/follow/requests/:id/reject', err);
-    res.status(500).json({ error: 'Could not reject' });
+    sendRouteError(res, err, 'POST /api/follow/requests/:id/reject', 'Could not reject');
   }
 });
 
@@ -83,8 +81,7 @@ followRouter.get('/state/:username', requireAuth, async (req, res) => {
     }
     res.json({ userId: target.id, self: false, followForViewer });
   } catch (err) {
-    console.error('GET /api/follow/state/:username', err);
-    res.status(500).json({ error: 'Could not load follow state' });
+    sendRouteError(res, err, 'GET /api/follow/state/:username', 'Could not load follow state');
   }
 });
 
@@ -124,8 +121,7 @@ followRouter.post('/user/:username', requireAuth, async (req, res) => {
     });
     res.status(201).json(created);
   } catch (err) {
-    console.error('POST /api/follow/user/:username', err);
-    res.status(500).json({ error: 'Could not send follow request' });
+    sendRouteError(res, err, 'POST /api/follow/user/:username', 'Could not send follow request');
   }
 });
 
@@ -140,7 +136,6 @@ followRouter.delete('/user/:username', requireAuth, async (req, res) => {
     });
     res.json({ message: 'Unfollowed or request cancelled' });
   } catch (err) {
-    console.error('DELETE /api/follow/user/:username', err);
-    res.status(500).json({ error: 'Could not unfollow' });
+    sendRouteError(res, err, 'DELETE /api/follow/user/:username', 'Could not unfollow');
   }
 });
