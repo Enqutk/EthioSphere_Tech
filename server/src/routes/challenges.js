@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
-import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth.js';
+import { requireAuth, optionalAuth } from '../middleware/auth.js';
+import { canUserCreateChallenge, challengeCreateRequirementText } from '../lib/challengeEligibility.js';
 import { parseGithubRepo, verifyPublicGithubRepo } from '../lib/githubPublic.js';
 
 export const challengesRouter = Router();
@@ -40,7 +41,19 @@ challengesRouter.get('/', optionalAuth, async (req, res) => {
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
-    res.json(challenges);
+    let canCreateChallenge = false;
+    if (req.user?.id) {
+      const u = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { id: true, rank: true, isAdmin: true },
+      });
+      if (u) canCreateChallenge = await canUserCreateChallenge(u);
+    }
+    res.json({
+      challenges,
+      canCreateChallenge,
+      createRequirement: challengeCreateRequirementText(),
+    });
   } catch (err) {
     sendPrismaError(res, err, 'GET /api/challenges', 'Could not list challenges');
   }
@@ -181,11 +194,10 @@ challengesRouter.post(
   }
 );
 
-// Create challenge (admins only)
+// Create challenge (eligible devs: admin, Junior+ rank, or Newbie with enough completions)
 challengesRouter.post(
   '/',
   requireAuth,
-  requireAdmin,
   [
     body('title').trim().notEmpty(),
     body('description').trim().notEmpty(),
@@ -196,6 +208,13 @@ challengesRouter.post(
   ],
   async (req, res) => {
     try {
+      const ok = await canUserCreateChallenge(req.user);
+      if (!ok) {
+        return res.status(403).json({
+          error: 'You are not eligible to create challenges yet.',
+          hint: challengeCreateRequirementText(),
+        });
+      }
       const errors = validationResult(req);
       if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
       const { title, description, difficulty, rewardPoints = 10 } = req.body;
