@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
+import { sendRouteError } from '../lib/dbErrors.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getOrCreateDmThread } from '../lib/dmThread.js';
 
@@ -40,12 +41,7 @@ messagesRouter.get('/inbox', requireAuth, async (req, res) => {
     });
     res.json(out);
   } catch (err) {
-    console.error('GET /api/messages/inbox', err);
-    const hint =
-      err.code === 'P2021' || /does not exist|relation .* not found/i.test(String(err.message))
-        ? 'Run `npx prisma db push` in the server folder so dm_threads and dm_messages exist.'
-        : undefined;
-    res.status(500).json({ error: 'Could not load inbox', ...(hint && { hint }) });
+    sendRouteError(res, err, 'GET /api/messages/inbox', 'Could not load inbox');
   }
 });
 
@@ -75,12 +71,7 @@ messagesRouter.get('/with/:userId', requireAuth, async (req, res) => {
 
     res.json({ threadId: thread.id, otherUser: other, messages });
   } catch (err) {
-    console.error('GET /api/messages/with/:userId', err);
-    const hint =
-      err.code === 'P2021' || /does not exist|relation .* not found/i.test(String(err.message))
-        ? 'Run `npx prisma db push` in the server folder so dm_threads and dm_messages exist.'
-        : undefined;
-    res.status(500).json({ error: 'Could not load messages', ...(hint && { hint }) });
+    sendRouteError(res, err, 'GET /api/messages/with/:userId', 'Could not load messages');
   }
 });
 
@@ -115,12 +106,7 @@ messagesRouter.post(
       });
       res.status(201).json(msg);
     } catch (err) {
-      console.error('POST /api/messages/with/:userId', err);
-      const hint =
-        err.code === 'P2021' || /does not exist|relation .* not found/i.test(String(err.message))
-          ? 'Run `npx prisma db push` in the server folder so dm_threads and dm_messages exist.'
-          : undefined;
-      res.status(500).json({ error: 'Could not send message', ...(hint && { hint }) });
+      sendRouteError(res, err, 'POST /api/messages/with/:userId', 'Could not send message');
     }
   },
 );
