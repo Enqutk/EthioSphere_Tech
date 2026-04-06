@@ -4,6 +4,8 @@ import { projectsApi } from '@/shared/api';
 import { useAuth } from '@/shared/components/AuthProvider';
 import { getStoredToken } from '@/shared/components/AuthProvider';
 import { FollowCreatorActions } from '@/shared/components/FollowCreatorActions';
+import { ReadmePreview } from '@/shared/components/ReadmePreview';
+import { PulseStrip } from '@/shared/components/PulseStrip';
 
 type GithubRepoInfo = {
   full_name?: string;
@@ -58,6 +60,10 @@ type Project = {
   githubFullName?: string | null;
   githubData?: GithubDataBundle | null;
   githubSyncedAt?: string | null;
+  viewCount?: number;
+  likeCount?: number;
+  pulseScore?: number;
+  likedByViewer?: boolean;
   owner: { id: string; name: string; username: string; avatarUrl?: string | null; rank: string };
   members: { role: string; user: { id: string; name: string; username: string; avatarUrl?: string | null } }[];
 };
@@ -105,15 +111,37 @@ export default function ProjectDetail() {
   const [editVis, setEditVis] = useState<'PUBLIC' | 'FOLLOWERS_ONLY' | 'PRIVATE'>('PUBLIC');
   const [editSeeking, setEditSeeking] = useState(false);
   const [ownerSaving, setOwnerSaving] = useState(false);
+  const [likeBusy, setLikeBusy] = useState(false);
 
   useEffect(() => {
     if (!id) return;
+    let cancelled = false;
+    let refetchTimer: ReturnType<typeof setTimeout> | undefined;
     const token = getStoredToken();
     projectsApi
-      .get(id, token)
-      .then((data) => setProject(data as Project))
-      .catch(() => setError('Project not found'))
-      .finally(() => setLoading(false));
+      .getDetail(id, token)
+      .then(({ project: data, githubRefreshing }) => {
+        if (cancelled) return;
+        setProject(data as Project);
+        if (githubRefreshing) {
+          refetchTimer = setTimeout(() => {
+            if (cancelled) return;
+            projectsApi.getDetail(id, getStoredToken()).then(({ project: fresh }) => {
+              if (!cancelled) setProject(fresh as Project);
+            }).catch(() => {});
+          }, 4000);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setError('Project not found');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+      if (refetchTimer) clearTimeout(refetchTimer);
+    };
   }, [id]);
 
   useEffect(() => {
@@ -149,6 +177,20 @@ export default function ProjectDetail() {
 
   const canJoin = user && !(project.owner.id === user.id || project.members.some((m) => m.user.id === user.id)) && project.status !== 'ARCHIVED';
   const isOwner = user?.id === project.owner.id;
+
+  async function handleProjectLike() {
+    const token = getStoredToken();
+    if (!token || !id || likeBusy) return;
+    setLikeBusy(true);
+    try {
+      const r = await projectsApi.like(token, id);
+      setProject((p) =>
+        p ? { ...p, likedByViewer: r.liked, likeCount: r.likeCount, pulseScore: r.pulseScore } : p,
+      );
+    } finally {
+      setLikeBusy(false);
+    }
+  }
 
   async function handleOwnerSave() {
     const token = getStoredToken();
@@ -196,6 +238,33 @@ export default function ProjectDetail() {
             <p className="text-xs text-slate-500">Creator</p>
             <FollowCreatorActions username={project.owner.username} userId={project.owner.id} className="justify-end" />
           </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 border-t border-slate-800/80 pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <PulseStrip
+            pulse={project.pulseScore ?? 0}
+            views={project.viewCount ?? 0}
+            rep={project.likeCount ?? 0}
+            repLabel="★likes"
+          />
+          {user ? (
+            <button
+              type="button"
+              disabled={likeBusy}
+              onClick={handleProjectLike}
+              className={`rounded border px-3 py-1.5 font-mono text-xs uppercase tracking-wide transition ${
+                project.likedByViewer
+                  ? 'border-amber-500/50 bg-amber-500/15 text-amber-300'
+                  : 'border-cyan-500/40 bg-slate-950 text-cyan-400 hover:border-cyan-400/70 hover:bg-cyan-500/10'
+              }`}
+            >
+              {project.likedByViewer ? '> undo prop' : '> ++prop'}
+            </button>
+          ) : (
+            <p className="font-mono text-xs text-slate-500">
+              <Link to="/login" className="text-brand-400 hover:underline">login</Link> to drop a ++prop
+            </p>
+          )}
         </div>
 
         {project.githubHtmlUrl && project.githubFullName && (
@@ -388,7 +457,7 @@ export default function ProjectDetail() {
               <div>
                 <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">README</h3>
                 <div className="mt-2 max-h-[min(70vh,32rem)] overflow-auto rounded-lg border border-slate-700 bg-surface-950 p-4">
-                  <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-slate-300">{gh.readme}</pre>
+                  <ReadmePreview markdown={gh.readme} />
                 </div>
               </div>
             )}
