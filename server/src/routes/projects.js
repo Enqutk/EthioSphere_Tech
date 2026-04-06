@@ -8,10 +8,14 @@ import {
   buildPublicRepoBundle,
 } from '../lib/githubPublic.js';
 import { projectListVisibilityWhere, canViewProject } from '../lib/projectAccess.js';
+import { projectPulseScore } from '../lib/pulseScore.js';
 
 export const projectsRouter = Router();
 
 const GITHUB_SYNC_MS = 10 * 60 * 1000;
+
+/** Avoid duplicate GitHub bundle fetches when many clients hit a stale project at once. */
+const githubRefreshInFlight = new Set();
 
 const projectInclude = {
   owner: { select: { id: true, name: true, username: true, avatarUrl: true, rank: true } },
@@ -27,6 +31,11 @@ function omitReadmeFromGithubData(githubData) {
   if (!githubData || typeof githubData !== 'object' || Array.isArray(githubData)) return githubData;
   const { readme: _r, ...rest } = githubData;
   return rest;
+}
+
+function repoStarsFromGithubData(gh) {
+  if (!gh || typeof gh !== 'object' || !gh.repo || typeof gh.repo !== 'object') return 0;
+  return Number(gh.repo.stargazers_count) || 0;
 }
 
 // List projects (with optional filters)
@@ -54,11 +63,32 @@ projectsRouter.get('/', optionalAuth, async (req, res) => {
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
+    const viewerId = req.user?.id;
+    let likedIds = new Set();
+    if (viewerId && projects.length) {
+      const likes = await prisma.projectLike.findMany({
+        where: { userId: viewerId, projectId: { in: projects.map((x) => x.id) } },
+        select: { projectId: true },
+      });
+      likedIds = new Set(likes.map((l) => l.projectId));
+    }
     res.json(
-      projects.map((p) => ({
-        ...p,
-        githubData: p.githubData ? omitReadmeFromGithubData(p.githubData) : p.githubData,
-      })),
+      projects.map((p) => {
+        const gh = p.githubData ? omitReadmeFromGithubData(p.githubData) : p.githubData;
+        const memberCount = 1 + (p.members?.length || 0);
+        const pulseScore = projectPulseScore({
+          likeCount: p.likeCount,
+          viewCount: p.viewCount,
+          memberCount,
+          repoStars: repoStarsFromGithubData(gh),
+        });
+        return {
+          ...p,
+          githubData: gh,
+          pulseScore,
+          likedByViewer: viewerId ? likedIds.has(p.id) : false,
+        };
+      }),
     );
   } catch (err) {
     console.error('GET /api/projects', err);
@@ -89,26 +119,113 @@ projectsRouter.get('/:id', optionalAuth, async (req, res) => {
         if (slash > 0) {
           const owner = project.githubFullName.slice(0, slash);
           const repo = project.githubFullName.slice(slash + 1);
-          const bundle = await buildPublicRepoBundle(owner, repo);
-          if (bundle.ok) {
-            project = await prisma.project.update({
-              where: { id: project.id },
-              data: {
-                githubData: bundle.payload,
-                githubSyncedAt: new Date(),
-                githubHtmlUrl: bundle.apiRepo.html_url,
-              },
-              include: projectInclude,
-            });
+          const pid = project.id;
+          if (!githubRefreshInFlight.has(pid)) {
+            githubRefreshInFlight.add(pid);
+            res.setHeader('X-Github-Refresh', 'scheduled');
+            void (async () => {
+              try {
+                const bundle = await buildPublicRepoBundle(owner, repo);
+                if (bundle.ok) {
+                  await prisma.project.update({
+                    where: { id: pid },
+                    data: {
+                      githubData: bundle.payload,
+                      githubSyncedAt: new Date(),
+                      githubHtmlUrl: bundle.apiRepo.html_url,
+                    },
+                  });
+                }
+              } catch (e) {
+                console.error('Background GitHub refresh failed', pid, e);
+              } finally {
+                githubRefreshInFlight.delete(pid);
+              }
+            })();
           }
         }
       }
     }
 
-    res.json(project);
+    await prisma.project.update({
+      where: { id: project.id },
+      data: { viewCount: { increment: 1 } },
+    });
+    const viewCount = project.viewCount + 1;
+    let likedByViewer = false;
+    if (viewerId) {
+      likedByViewer = Boolean(
+        await prisma.projectLike.findUnique({
+          where: { projectId_userId: { projectId: project.id, userId: viewerId } },
+        }),
+      );
+    }
+    const ghOut = project.githubData ? omitReadmeFromGithubData(project.githubData) : project.githubData;
+    const memberCount = 1 + (project.members?.length || 0);
+    const pulseScore = projectPulseScore({
+      likeCount: project.likeCount,
+      viewCount,
+      memberCount,
+      repoStars: repoStarsFromGithubData(ghOut),
+    });
+    res.json({ ...project, githubData: ghOut, viewCount, pulseScore, likedByViewer });
   } catch (err) {
     console.error('GET /api/projects/:id', err);
     res.status(500).json({ error: 'Could not load project' });
+  }
+});
+
+// Like / unlike project (auth, must be able to view project)
+projectsRouter.post('/:id/like', requireAuth, async (req, res) => {
+  try {
+    const project = await prisma.project.findUnique({ where: { id: req.params.id } });
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    const allowed = await canViewProject(prisma, project, req.user.id);
+    if (!allowed) return res.status(404).json({ error: 'Project not found' });
+    const existing = await prisma.projectLike.findUnique({
+      where: { projectId_userId: { projectId: project.id, userId: req.user.id } },
+    });
+    const extraMembers = await prisma.projectMember.count({ where: { projectId: project.id } });
+    const memberCount = 1 + extraMembers;
+    const gh = project.githubData ? omitReadmeFromGithubData(project.githubData) : project.githubData;
+
+    if (existing) {
+      await prisma.$transaction([
+        prisma.projectLike.delete({ where: { id: existing.id } }),
+        prisma.project.update({
+          where: { id: project.id },
+          data: { likeCount: { decrement: 1 } },
+        }),
+      ]);
+      const likeCount = Math.max(0, project.likeCount - 1);
+      const pulseScore = projectPulseScore({
+        likeCount,
+        viewCount: project.viewCount,
+        memberCount,
+        repoStars: repoStarsFromGithubData(gh),
+      });
+      return res.json({ liked: false, likeCount, pulseScore });
+    }
+    await prisma.$transaction([
+      prisma.projectLike.create({
+        data: { projectId: project.id, userId: req.user.id },
+      }),
+      prisma.project.update({
+        where: { id: project.id },
+        data: { likeCount: { increment: 1 } },
+      }),
+    ]);
+    const likeCount = project.likeCount + 1;
+    const pulseScore = projectPulseScore({
+      likeCount,
+      viewCount: project.viewCount,
+      memberCount,
+      repoStars: repoStarsFromGithubData(gh),
+    });
+    return res.json({ liked: true, likeCount, pulseScore });
+  } catch (err) {
+    console.error('POST /api/projects/:id/like', err);
+    res.status(500).json({ error: 'Could not update like' });
   }
 });
 
