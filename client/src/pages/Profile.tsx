@@ -11,6 +11,7 @@ type Profile = {
   bio?: string | null;
   rank: string;
   githubUrl?: string | null;
+  portfolioUrl?: string | null;
   skills?: string[];
   followersCount?: number;
   followingCount?: number;
@@ -117,9 +118,13 @@ export default function Profile() {
                 <Link to="/profile/edit" className="text-brand-400 hover:underline">Add one</Link>
               </p>
             ) : null}
-            {profile.githubUrl && (
-              <a href={profile.githubUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-brand-400 hover:underline">GitHub →</a>
-            )}
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+              {profile.githubUrl && (
+                <a href={profile.githubUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-400 hover:underline">
+                  GitHub →
+                </a>
+              )}
+            </div>
           </div>
           <div className="flex flex-col gap-2 sm:items-end">
             {isOwn && (
@@ -205,6 +210,33 @@ export default function Profile() {
             )}
           </div>
         </div>
+
+        {profile.portfolioUrl ? (
+          <div className="mt-6 rounded-lg border border-brand-600/40 bg-surface-950/60 p-5">
+            <p className="label-system">Hosted portfolio</p>
+            <p className="mt-1 text-sm text-slate-400">
+              Personal site you deploy (GitHub Pages, Vercel, Netlify, …). Opens in a new tab — not embedded here.
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <a
+                href={profile.portfolioUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary text-sm"
+              >
+                Open portfolio ↗
+              </a>
+              <span className="font-mono text-xs text-slate-500 break-all">{profile.portfolioUrl}</span>
+            </div>
+          </div>
+        ) : isOwn ? (
+          <div className="mt-6 rounded-lg border border-dashed border-brand-900/50 bg-surface-950/40 p-4 text-sm text-slate-500">
+            <span className="font-mono text-xs text-brand-500/80">[PORTFOLIO]</span>{' '}
+            Link a self-hosted mini-site from{' '}
+            <Link to="/profile/edit" className="text-brand-400 hover:underline">edit profile</Link>.
+          </div>
+        ) : null}
+
         <div className="mt-6 border-t border-slate-700 pt-6">
           <h2 className="font-mono text-sm font-medium text-slate-400">Skills</h2>
           {profile.skills && profile.skills.length > 0 ? (
