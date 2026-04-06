@@ -14,6 +14,7 @@ import CommunityPost from '@/pages/CommunityPost';
 import CommunityNew from '@/pages/CommunityNew';
 import Challenges from '@/pages/Challenges';
 import ChallengeDetail from '@/pages/ChallengeDetail';
+import ChallengeNew from '@/pages/ChallengeNew';
 import Inbox from '@/pages/Inbox';
 import InboxChat from '@/pages/InboxChat';
 import Admin from '@/pages/Admin';
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="/community/new" element={<CommunityNew />} />
           <Route path="/community/:id" element={<CommunityPost />} />
           <Route path="/challenges" element={<Challenges />} />
+          <Route path="/challenges/new" element={<ChallengeNew />} />
           <Route path="/challenges/:id" element={<ChallengeDetail />} />
           <Route path="/admin" element={<Admin />} />
         </Routes>
