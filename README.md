@@ -5,7 +5,7 @@ A unified platform for programmers to **learn**, **build**, **compete**, and **c
 ## What's included (MVP)
 
 - **User authentication** — Register, login, JWT
-- **Developer profiles** — Username, bio, skills, rank, projects, badges
+- **Developer profiles** — Username, bio, skills, rank, projects, badges; optional **hosted portfolio URL** (your own static site on GitHub Pages, Vercel, etc.) linked from the profile
 - **Project playground** — Create projects, join with a role (frontend/backend/UI/UX/fullstack), browse and search
 - **Community** — Sections (General, Debug help, Project feedback, etc.), posts, threaded comments, mark solution
 - **Coding challenges** — Submit solutions (e.g. GitHub links); optional **submission close** time hides others’ entries until the deadline, then shows a **public timeline** in submission order. Challenges without a close time use a classic leaderboard.
