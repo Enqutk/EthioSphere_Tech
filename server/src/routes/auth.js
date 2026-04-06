@@ -103,8 +103,20 @@ authRouter.post(
         return res.status(400).json({ errors: errors.array() });
       }
       const { email, password } = req.body;
+      // Explicit select so login still works if the DB is behind the schema (e.g. new columns not migrated yet).
       const user = await prisma.user.findUnique({
         where: { email },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          name: true,
+          rank: true,
+          avatarUrl: true,
+          githubUrl: true,
+          isAdmin: true,
+          passwordHash: true,
+        },
       });
       if (!user || !user.passwordHash) {
         return res.status(401).json({ error: 'Invalid email or password' });
