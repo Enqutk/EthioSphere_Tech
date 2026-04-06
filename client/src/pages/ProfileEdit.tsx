@@ -10,6 +10,7 @@ export default function ProfileEdit() {
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
+  const [portfolioUrl, setPortfolioUrl] = useState('');
   const [skills, setSkills] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -33,10 +34,11 @@ export default function ProfileEdit() {
     usersApi
       .me(token)
       .then((data) => {
-        const d = data as { name?: string; bio?: string; githubUrl?: string; skills?: string[] };
+        const d = data as { name?: string; bio?: string; githubUrl?: string; portfolioUrl?: string; skills?: string[] };
         setName(d.name ?? '');
         setBio(d.bio ?? '');
         setGithubUrl(d.githubUrl ?? '');
+        setPortfolioUrl(d.portfolioUrl ?? '');
         setSkills(Array.isArray(d.skills) ? d.skills.join(', ') : '');
       })
       .catch(() => setError('Could not load your profile. Try logging in again.'))
@@ -54,6 +56,7 @@ export default function ProfileEdit() {
         name: name.trim(),
         bio: bio.trim() || undefined,
         githubUrl: githubUrl.trim() || undefined,
+        portfolioUrl: portfolioUrl.trim() ? portfolioUrl.trim() : null,
         skills: skills.split(',').map((s) => s.trim()).filter(Boolean),
       });
       updateSessionUser(updated);
@@ -86,6 +89,21 @@ export default function ProfileEdit() {
         <div>
           <label htmlFor="githubUrl" className="block text-sm font-medium text-slate-300">GitHub URL</label>
           <input id="githubUrl" type="url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} className="input mt-1" placeholder="https://github.com/username" />
+        </div>
+        <div>
+          <label htmlFor="portfolioUrl" className="block text-sm font-medium text-slate-300">Hosted portfolio URL</label>
+          <input
+            id="portfolioUrl"
+            type="url"
+            value={portfolioUrl}
+            onChange={(e) => setPortfolioUrl(e.target.value)}
+            className="input mt-1"
+            placeholder="https://you.github.io / https://your-site.vercel.app"
+          />
+          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+            Deploy your own mini-site anywhere (GitHub Pages, Vercel, Netlify, Cloudflare Pages, etc.) and paste the public{' '}
+            <span className="font-mono text-slate-400">https://</span> link. It opens in a new tab from your profile — we don’t host or embed the page.
+          </p>
         </div>
         <div>
           <label htmlFor="skills" className="block text-sm font-medium text-slate-300">Skills (comma-separated)</label>
