@@ -1,9 +1,23 @@
 import { api } from './http';
 
+export type ChallengesListPayload = {
+  challenges: unknown[];
+  canCreateChallenge: boolean;
+  createRequirement: string;
+};
+
 export const challengesApi = {
-  list: (params?: { difficulty?: string }) => {
+  list: async (params?: { difficulty?: string }, token?: string | null) => {
     const q = new URLSearchParams(params as Record<string, string>).toString();
-    return api<unknown[]>(`/api/challenges${q ? `?${q}` : ''}`);
+    const raw = await api<unknown>(`/api/challenges${q ? `?${q}` : ''}`, token ? { token } : {});
+    if (Array.isArray(raw)) {
+      return {
+        challenges: raw,
+        canCreateChallenge: false,
+        createRequirement: '',
+      } as ChallengesListPayload;
+    }
+    return raw as ChallengesListPayload;
   },
   get: (id: string, token?: string | null) =>
     api<Record<string, unknown>>(`/api/challenges/${id}`, token ? { token } : {}),
