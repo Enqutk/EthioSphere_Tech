@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
+import { extrasForPrismaError } from '../lib/dbErrors.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import { ownedProjectsVisibleWhere } from '../lib/projectAccess.js';
 
@@ -20,6 +21,7 @@ usersRouter.get('/me', requireAuth, async (req, res) => {
         bio: true,
         rank: true,
         githubUrl: true,
+        portfolioUrl: true,
         skills: true,
         isAdmin: true,
         createdAt: true,
@@ -30,16 +32,10 @@ usersRouter.get('/me', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('GET /api/users/me', err);
     const dev = process.env.NODE_ENV !== 'production';
-    const code = err.code;
-    const hint =
-      code === 'P2022' || /column .* does not exist|Unknown column/i.test(String(err.message))
-        ? 'Run `npx prisma db push` from the server folder so the database matches the Prisma schema.'
-        : /reach database server at/i.test(String(err.message))
-          ? 'Database is unreachable — wake the project in the Neon dashboard and check DATABASE_URL.'
-          : undefined;
+    const { hint, prismaCode } = extrasForPrismaError(err);
     res.status(500).json({
       error: 'Could not load profile',
-      ...(dev && { details: err.message, code }),
+      ...(dev && { details: err.message, code: prismaCode }),
       ...(hint && { hint }),
     });
   }
@@ -135,9 +131,11 @@ usersRouter.get('/discover', optionalAuth, async (req, res) => {
   } catch (err) {
     console.error('GET /api/users/discover', err);
     const dev = process.env.NODE_ENV !== 'production';
+    const { hint, prismaCode } = extrasForPrismaError(err);
     res.status(500).json({
       error: 'Could not search people',
-      ...(dev && { details: err.message }),
+      ...(dev && { details: err.message, code: prismaCode }),
+      ...(hint && { hint }),
     });
   }
 });
@@ -164,6 +162,7 @@ usersRouter.get('/:username', optionalAuth, async (req, res) => {
         bio: true,
         rank: true,
         githubUrl: true,
+        portfolioUrl: true,
         skills: true,
         badges: { select: { badgeType: true, earnedAt: true } },
       },
@@ -219,9 +218,11 @@ usersRouter.get('/:username', optionalAuth, async (req, res) => {
   } catch (err) {
     console.error('GET /api/users/:username', err);
     const dev = process.env.NODE_ENV !== 'production';
+    const { hint, prismaCode } = extrasForPrismaError(err);
     res.status(500).json({
       error: 'Could not load profile',
-      ...(dev && { details: err.message }),
+      ...(dev && { details: err.message, code: prismaCode }),
+      ...(hint && { hint }),
     });
   }
 });
@@ -239,6 +240,23 @@ usersRouter.patch(
       .trim()
       .isURL({ require_protocol: true, require_valid_protocol: true })
       .withMessage('Must be a valid URL (include https://)'),
+    body('portfolioUrl')
+      .optional({ nullable: true })
+      .custom((value) => {
+        if (value === null || value === undefined || value === '') return true;
+        if (typeof value !== 'string') return false;
+        const t = value.trim();
+        if (!t) return true;
+        if (t.length > 2048) return false;
+        try {
+          const u = new URL(t);
+          if (!['http:', 'https:'].includes(u.protocol)) return false;
+        } catch {
+          return false;
+        }
+        return true;
+      })
+      .withMessage('Portfolio must be a valid http(s) URL or empty'),
     body('skills').optional().isArray(),
     body('skills.*').optional().isString(),
   ],
@@ -246,11 +264,15 @@ usersRouter.patch(
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-      const { name, bio, githubUrl, skills } = req.body;
+      const { name, bio, githubUrl, portfolioUrl, skills } = req.body;
       const data = {};
       if (name !== undefined) data.name = name;
       if (bio !== undefined) data.bio = bio === '' ? null : bio;
       if (githubUrl !== undefined) data.githubUrl = githubUrl || null;
+      if (portfolioUrl !== undefined) {
+        data.portfolioUrl =
+          portfolioUrl === null || portfolioUrl === '' ? null : String(portfolioUrl).trim() || null;
+      }
       if (skills !== undefined) data.skills = skills;
       if (Object.keys(data).length === 0) {
         return res.status(400).json({ error: 'No valid fields to update' });
@@ -258,7 +280,18 @@ usersRouter.patch(
       const user = await prisma.user.update({
         where: { id: req.user.id },
         data,
-        select: { id: true, name: true, username: true, avatarUrl: true, bio: true, rank: true, githubUrl: true, skills: true, isAdmin: true },
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          avatarUrl: true,
+          bio: true,
+          rank: true,
+          githubUrl: true,
+          portfolioUrl: true,
+          skills: true,
+          isAdmin: true,
+        },
       });
       res.json(user);
     } catch (err) {
