@@ -21,6 +21,7 @@ model User {
   bio           String?
   rank          Rank      @default(NEWBIE)
   githubUrl     String?   @map("github_url")
+  portfolioUrl  String?   @map("portfolio_url") // self-hosted mini portfolio (Pages, Vercel, Netlify, …)
   skills        String[]  @default([]) // e.g. ["React", "Node.js"]
   isAdmin       Boolean   @default(false) @map("is_admin")
   createdAt     DateTime  @default(now()) @map("created_at")
@@ -38,6 +39,7 @@ model User {
   dmMessagesSent  DmMessage[]
   followsOutgoing Follow[]        @relation("FollowFollower")
   followsIncoming Follow[]        @relation("FollowFollowee")
+  projectLikes    ProjectLike[]
 }
 
 enum Rank {
@@ -115,12 +117,26 @@ model Project {
   githubFullName  String?            @map("github_full_name")
   githubData      Json?              @map("github_data")
   githubSyncedAt  DateTime?          @map("github_synced_at")
+  viewCount       Int                @default(0) @map("view_count")
+  likeCount       Int                @default(0) @map("like_count")
   createdAt       DateTime           @default(now()) @map("created_at")
   updatedAt       DateTime           @updatedAt @map("updated_at")
 
-  owner   User            @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members ProjectMember[]
-  posts   Post[]
+  owner        User            @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members      ProjectMember[]
+  posts        Post[]
+  projectLikes ProjectLike[]
+}
+
+model ProjectLike {
+  id        String   @id @default(cuid())
+  projectId String   @map("project_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([projectId, userId])
+  @@map("project_likes")
 }
 
 enum ProjectVisibility {
@@ -207,6 +223,7 @@ model Post {
   repoFullName    String?     @map("repo_full_name")
   repoPublic      Boolean?    @map("repo_public")
   repoDescription String?     @map("repo_description") @db.VarChar(512)
+  viewCount       Int         @default(0) @map("view_count")
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
 
