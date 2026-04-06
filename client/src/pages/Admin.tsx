@@ -66,12 +66,12 @@ export default function Admin() {
         adminApi.overview(token),
         adminApi.posts(token),
         adminApi.users(token),
-        challengesApi.list(),
+        challengesApi.list(undefined, token),
       ]);
       setOverview(ov);
       setPosts(p);
       setUsers(u);
-      setChallenges(ch as ChallengeRow[]);
+      setChallenges(ch.challenges as ChallengeRow[]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load admin data');
     } finally {
