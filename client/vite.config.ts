@@ -16,6 +16,8 @@ export default defineConfig({
       '/api': {
         target: process.env.VITE_API_URL || 'http://localhost:4000',
         changeOrigin: true,
+        /** Outgoing request to the API — fail before the default ~120s hang (Neon cold, API down). */
+        proxyTimeout: 25_000,
         configure(proxy) {
           proxy.on('proxyReq', (proxyReq, req) => {
             const auth = req.headers.authorization;
