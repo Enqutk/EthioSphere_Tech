@@ -97,7 +97,10 @@ export default function Inbox() {
       </div>
 
       {loadError && (
-        <p className="mt-6 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300" role="alert">
+        <p
+          className="mt-6 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+          role="alert"
+        >
           {loadError}
         </p>
       )}
