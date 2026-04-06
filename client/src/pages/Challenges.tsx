@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { challengesApi } from '@/shared/api';
+import { useAuth, getStoredToken } from '@/shared/components/AuthProvider';
 
 type Challenge = {
   id: string;
@@ -14,17 +15,44 @@ type Challenge = {
 const DIFF: Record<string, string> = { EASY: 'Easy', MEDIUM: 'Medium', HARD: 'Hard' };
 
 export default function Challenges() {
+  const { ready } = useAuth();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [canCreate, setCanCreate] = useState(false);
+  const [createHint, setCreateHint] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    challengesApi.list().then((data) => setChallenges(data as Challenge[])).finally(() => setLoading(false));
-  }, []);
+    if (!ready) return;
+    const token = getStoredToken();
+    challengesApi
+      .list(undefined, token)
+      .then((data) => {
+        setChallenges(data.challenges as Challenge[]);
+        setCanCreate(data.canCreateChallenge);
+        setCreateHint(data.createRequirement);
+      })
+      .finally(() => setLoading(false));
+  }, [ready]);
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-12">
-      <h1 className="font-mono text-2xl font-semibold text-slate-100">Coding Challenges</h1>
-      <p className="mt-2 text-slate-400">Solve challenges, earn points, climb the leaderboard.</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div>
+          <h1 className="font-mono text-2xl font-semibold text-slate-100">Coding Challenges</h1>
+          <p className="mt-2 text-slate-400">Solve challenges, earn points, climb the leaderboard.</p>
+          {createHint && (
+            <p className="mt-2 font-mono text-xs text-slate-500">// create: {createHint}</p>
+          )}
+        </div>
+        {canCreate && (
+          <Link
+            to="/challenges/new"
+            className="inline-flex items-center justify-center rounded border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 font-mono text-sm text-cyan-300 hover:bg-cyan-500/20"
+          >
+            $ new challenge
+          </Link>
+        )}
+      </div>
       {loading ? (
         <div className="mt-12 text-center text-slate-400">Loading challenges…</div>
       ) : challenges.length === 0 ? (
