@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { adminApi, postsApi } from '@/shared/api';
 import { useAuth, getStoredToken } from '@/shared/components/AuthProvider';
 import { FollowCreatorActions } from '@/shared/components/FollowCreatorActions';
+import { PulseStrip } from '@/shared/components/PulseStrip';
 
 type Post = {
   id: string;
@@ -17,6 +18,12 @@ type Post = {
   project?: { id: string; title: string; githubFullName?: string | null } | null;
   author: { id: string; name: string; username: string; avatarUrl?: string | null };
   comments: { id: string; body: string; isSolution: boolean; author: { id: string; name: string; username: string }; createdAt: string }[];
+  viewCount?: number;
+  pulseScore?: number;
+  upvotes?: number;
+  downvotes?: number;
+  commentCount?: number;
+  viewerVote?: 'up' | 'down' | null;
 };
 
 const SECTIONS: Record<string, string> = {
@@ -32,11 +39,35 @@ export default function CommunityPost() {
   const [loading, setLoading] = useState(true);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [voteBusy, setVoteBusy] = useState(false);
 
   useEffect(() => {
     if (!id) return;
-    postsApi.get(id).then((data) => setPost(data as Post)).finally(() => setLoading(false));
+    const token = getStoredToken();
+    postsApi.get(id, token).then((data) => setPost(data as Post)).finally(() => setLoading(false));
   }, [id]);
+
+  async function handleVote(upvote: boolean) {
+    const token = getStoredToken();
+    if (!token || !user || !id || voteBusy) return;
+    setVoteBusy(true);
+    try {
+      const r = await postsApi.vote(token, id, upvote);
+      setPost((p) =>
+        p
+          ? {
+              ...p,
+              upvotes: r.upvotes,
+              downvotes: r.downvotes,
+              pulseScore: r.pulseScore,
+              viewerVote: r.viewerVote,
+            }
+          : p,
+      );
+    } finally {
+      setVoteBusy(false);
+    }
+  }
 
   async function handleSubmitComment(e: React.FormEvent) {
     e.preventDefault();
@@ -45,7 +76,7 @@ export default function CommunityPost() {
     setSubmitting(true);
     try {
       await postsApi.addComment(token, id, { body: comment.trim() });
-      const updated = await postsApi.get(id);
+      const updated = await postsApi.get(id, token);
       setPost(updated as Post);
       setComment('');
     } finally {
@@ -82,6 +113,52 @@ export default function CommunityPost() {
             <button type="button" onClick={handleAdminDeletePost} className="text-red-400 hover:underline">
               Delete post (admin)
             </button>
+          )}
+        </div>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <PulseStrip
+            pulse={post.pulseScore ?? 0}
+            views={post.viewCount ?? 0}
+            rep={
+              post.upvotes != null && post.downvotes != null ? post.upvotes - post.downvotes : post.upvotes ?? 0
+            }
+            repLabel="net++"
+          />
+          {user ? (
+            <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+              <span className="text-slate-500">signal:</span>
+              <button
+                type="button"
+                disabled={voteBusy}
+                onClick={() => handleVote(true)}
+                className={`rounded border px-2 py-1 transition ${
+                  post.viewerVote === 'up'
+                    ? 'border-emerald-500/60 bg-emerald-500/20 text-emerald-300'
+                    : 'border-slate-600 bg-slate-900 text-slate-400 hover:border-emerald-500/40 hover:text-emerald-400'
+                }`}
+              >
+                ++
+              </button>
+              <button
+                type="button"
+                disabled={voteBusy}
+                onClick={() => handleVote(false)}
+                className={`rounded border px-2 py-1 transition ${
+                  post.viewerVote === 'down'
+                    ? 'border-rose-500/60 bg-rose-500/20 text-rose-300'
+                    : 'border-slate-600 bg-slate-900 text-slate-400 hover:border-rose-500/40 hover:text-rose-400'
+                }`}
+              >
+                --
+              </button>
+              <span className="text-slate-600">
+                [{post.upvotes ?? 0}↑ {post.downvotes ?? 0}↓]
+              </span>
+            </div>
+          ) : (
+            <p className="font-mono text-xs text-slate-500">
+              [{post.upvotes ?? 0}↑ {post.downvotes ?? 0}↓] · <Link to="/login" className="text-brand-400 hover:underline">login</Link> to vote
+            </p>
           )}
         </div>
         <p className="mt-6 whitespace-pre-wrap text-slate-300">{post.body}</p>
