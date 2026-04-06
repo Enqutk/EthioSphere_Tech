@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { postsApi } from '@/shared/api';
+import { getStoredToken } from '@/shared/components/AuthProvider';
+import { PulseStrip } from '@/shared/components/PulseStrip';
 
 type Post = {
   id: string;
@@ -12,8 +14,11 @@ type Post = {
   repoPublic?: boolean | null;
   project?: { id: string; title: string; githubFullName?: string | null } | null;
   author: { id: string; name: string; username: string };
-  _count?: { comments: number };
+  commentCount?: number;
+  viewCount?: number;
+  pulseScore?: number;
   upvotes?: number;
+  downvotes?: number;
 };
 
 const SECTIONS: Record<string, string> = {
@@ -27,7 +32,11 @@ export default function Community() {
   const [section, setSection] = useState('');
 
   useEffect(() => {
-    postsApi.list(section ? { section } : undefined).then((data) => setPosts(data as Post[])).finally(() => setLoading(false));
+    const token = getStoredToken();
+    postsApi
+      .list(section ? { section } : undefined, token)
+      .then((data) => setPosts(data as Post[]))
+      .finally(() => setLoading(false));
   }, [section]);
 
   return (
@@ -74,10 +83,20 @@ export default function Community() {
                   {p.repoPublic && p.repoFullName && (
                     <span className="rounded bg-slate-700/80 px-2 py-0.5 font-mono text-slate-300">📂 {p.repoFullName}</span>
                   )}
-                  {p._count?.comments != null && (
-                    <Link to={`/community/${p.id}`} className="hover:text-brand-400">{p._count.comments} comments</Link>
+                  {p.commentCount != null && (
+                    <Link to={`/community/${p.id}`} className="hover:text-brand-400">{p.commentCount} comments</Link>
                   )}
                 </div>
+                {(p.pulseScore != null || p.viewCount != null) && (
+                  <div className="mt-3 border-t border-slate-800/80 pt-3">
+                    <PulseStrip
+                      pulse={p.pulseScore ?? 0}
+                      views={p.viewCount ?? 0}
+                      rep={p.upvotes != null && p.downvotes != null ? p.upvotes - p.downvotes : p.upvotes}
+                      repLabel="net++"
+                    />
+                  </div>
+                )}
               </div>
             </li>
           ))}
