@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { projectsApi } from '@/shared/api';
 import { getStoredToken } from '@/shared/components/AuthProvider';
+import { PulseStrip } from '@/shared/components/PulseStrip';
 
 type Project = {
   id: string;
@@ -16,6 +17,9 @@ type Project = {
   githubData?: {
     repo?: { stargazers_count?: number; language?: string | null } | null;
   } | null;
+  viewCount?: number;
+  likeCount?: number;
+  pulseScore?: number;
   owner: { id: string; name: string; username: string };
   members?: { role: string }[];
 };
@@ -76,6 +80,14 @@ export default function Projects() {
                       {p.githubData?.repo?.language && (
                         <span className="text-xs text-slate-500">{p.githubData.repo.language}</span>
                       )}
+                    </div>
+                    <div className="mt-3 border-t border-slate-800/60 pt-3">
+                      <PulseStrip
+                        pulse={p.pulseScore ?? 0}
+                        views={p.viewCount ?? 0}
+                        rep={p.likeCount ?? 0}
+                        repLabel="★likes"
+                      />
                     </div>
                   </div>
                   <div className="text-right text-sm text-slate-500">by {p.owner.name} (@{p.owner.username})</div>
