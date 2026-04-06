@@ -8,6 +8,8 @@ export type User = {
   rank: string;
   /** Set at registration when GitHub is linked */
   githubUrl?: string | null;
+  /** Self-hosted mini portfolio (GitHub Pages, Vercel, etc.) */
+  portfolioUrl?: string | null;
   skills?: string[];
   isAdmin?: boolean;
 };
