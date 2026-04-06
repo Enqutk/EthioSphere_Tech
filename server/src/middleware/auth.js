@@ -61,8 +61,12 @@ export function requireAdmin(req, res, next) {
   next();
 }
 
-/** Attaches req.user when a valid Bearer token is present; never fails the request */
-export async function optionalAuth(req, res, next) {
+/**
+ * Valid Bearer → req.user = { id } from JWT only (no DB). Read routes avoid an extra DB round-trip
+ * before their main query; helps when the database is slow to wake (Neon) so the dev proxy doesn’t
+ * sit ~2min then return text/plain. Routes needing rank/isAdmin must load them or use requireAuth.
+ */
+export function optionalAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -75,11 +79,7 @@ export async function optionalAuth(req, res, next) {
       req.user = undefined;
       return next();
     }
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: { id: true, email: true, username: true, name: true, rank: true, avatarUrl: true, isAdmin: true },
-    });
-    req.user = user ?? undefined;
+    req.user = { id: decoded.userId };
   } catch (err) {
     console.error('optionalAuth', err);
     req.user = undefined;
