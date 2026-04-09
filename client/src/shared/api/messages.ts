@@ -7,6 +7,7 @@ export const messagesApi = {
         threadId: string;
         otherUser: { id: string; name: string; username: string; avatarUrl?: string | null };
         lastMessage: { body: string; createdAt: string; senderId: string; readAt: string | null } | null;
+        unreadCount: number;
         updatedAt: string;
       }[]
     >('/api/messages/inbox', { token }),
