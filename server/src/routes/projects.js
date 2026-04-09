@@ -63,7 +63,6 @@ projectsRouter.get('/', optionalAuth, async (req, res) => {
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
-    const viewerId = req.user?.id;
     let likedIds = new Set();
     if (viewerId && projects.length) {
       const likes = await prisma.projectLike.findMany({
