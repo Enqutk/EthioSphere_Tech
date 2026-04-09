@@ -23,6 +23,7 @@ model User {
   githubUrl     String?   @map("github_url")
   portfolioUrl  String?   @map("portfolio_url") // self-hosted mini portfolio (Pages, Vercel, Netlify, …)
   skills        String[]  @default([]) // e.g. ["React", "Node.js"]
+  profileSections Json?   @map("profile_sections") // [{ title: "About", content: "..." }, ...]
   isAdmin       Boolean   @default(false) @map("is_admin")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
