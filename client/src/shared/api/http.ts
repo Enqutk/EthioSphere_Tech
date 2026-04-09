@@ -2,6 +2,39 @@
  * Low-level JSON API client. All domain modules use /api calls (Vite proxies to the backend).
  */
 
+type ApiOptions = RequestInit & {
+  token?: string;
+  /** Milliseconds to cache successful GET responses in-memory. 0 disables cache for this call. */
+  cacheMs?: number;
+};
+
+const DEFAULT_GET_CACHE_MS = 15_000;
+const getCache = new Map<string, { expiresAt: number; data: unknown }>();
+const inFlightGets = new Map<string, Promise<unknown>>();
+
+function cacheKey(path: string, token?: string) {
+  return `${path}::${token || ''}`;
+}
+
+function readGetCache<T>(path: string, token?: string): T | null {
+  const hit = getCache.get(cacheKey(path, token));
+  if (!hit) return null;
+  if (Date.now() > hit.expiresAt) {
+    getCache.delete(cacheKey(path, token));
+    return null;
+  }
+  return hit.data as T;
+}
+
+function writeGetCache(path: string, token: string | undefined, data: unknown, cacheMs: number) {
+  if (cacheMs <= 0) return;
+  getCache.set(cacheKey(path, token), { expiresAt: Date.now() + cacheMs, data });
+}
+
+function clearGetCache() {
+  getCache.clear();
+}
+
 function buildFetchErrorMessage(
   res: Response,
   raw: string,
@@ -63,10 +96,26 @@ function buildFetchErrorMessage(
 
 export async function api<T>(
   path: string,
-  options: RequestInit & { token?: string } = {},
+  options: ApiOptions = {},
 ): Promise<T> {
-  const { token, ...init } = options;
+  const { token, cacheMs = DEFAULT_GET_CACHE_MS, ...init } = options;
   const url = `${path.startsWith('/') ? path : `/${path}`}`;
+  const method = (init.method || 'GET').toUpperCase();
+  const isGet = method === 'GET';
+
+  if (!isGet) {
+    // Any write may change many list/detail endpoints; keep UI consistent.
+    clearGetCache();
+  }
+
+  if (isGet && cacheMs > 0) {
+    const cached = readGetCache<T>(url, token);
+    if (cached != null) return cached;
+    const inflight = inFlightGets.get(cacheKey(url, token));
+    if (inflight) return (await inflight) as T;
+  }
+
+  const exec = (async () => {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(init.headers as Record<string, string>),
@@ -93,12 +142,26 @@ export async function api<T>(
   if (parsed === undefined) {
     throw new Error(`Invalid or non-JSON response from ${path}${ct ? ` (${ct})` : ''}`);
   }
-  return parsed as T;
+    const out = parsed as T;
+    if (isGet && cacheMs > 0) writeGetCache(url, token, out, cacheMs);
+    return out;
+  })();
+
+  if (isGet && cacheMs > 0) {
+    const key = cacheKey(url, token);
+    inFlightGets.set(key, exec as Promise<unknown>);
+    try {
+      return await exec;
+    } finally {
+      inFlightGets.delete(key);
+    }
+  }
+  return await exec;
 }
 
 export async function apiWithResponse<T>(
   path: string,
-  options: RequestInit & { token?: string } = {},
+  options: ApiOptions = {},
 ): Promise<{ data: T; response: Response }> {
   const { token, ...init } = options;
   const url = `${path.startsWith('/') ? path : `/${path}`}`;
