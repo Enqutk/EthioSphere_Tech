@@ -27,15 +27,27 @@ messagesRouter.get('/inbox', requireAuth, async (req, res) => {
       orderBy: { updatedAt: 'desc' },
       take: 100,
     });
+    const threadIds = threads.map((t) => t.id);
+    const unreadRows =
+      threadIds.length > 0
+        ? await prisma.dmMessage.groupBy({
+            by: ['threadId'],
+            where: { threadId: { in: threadIds }, senderId: { not: me }, readAt: null },
+            _count: { _all: true },
+          })
+        : [];
+    const unreadByThreadId = new Map(unreadRows.map((r) => [r.threadId, r._count._all]));
     const out = threads.map((t) => {
       const other = otherParticipant(t, me);
       const last = t.messages[0];
+      const unreadCount = unreadByThreadId.get(t.id) || 0;
       return {
         threadId: t.id,
         otherUser: other,
         lastMessage: last
           ? { body: last.body.slice(0, 200), createdAt: last.createdAt, senderId: last.senderId, readAt: last.readAt }
           : null,
+        unreadCount,
         updatedAt: t.updatedAt,
       };
     });
