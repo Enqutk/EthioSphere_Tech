@@ -12,6 +12,7 @@ export default function ProfileEdit() {
   const [githubUrl, setGithubUrl] = useState('');
   const [portfolioUrl, setPortfolioUrl] = useState('');
   const [skills, setSkills] = useState('');
+  const [profileSections, setProfileSections] = useState<{ title: string; content: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -34,12 +35,29 @@ export default function ProfileEdit() {
     usersApi
       .me(token)
       .then((data) => {
-        const d = data as { name?: string; bio?: string; githubUrl?: string; portfolioUrl?: string; skills?: string[] };
+        const d = data as {
+          name?: string;
+          bio?: string;
+          githubUrl?: string;
+          portfolioUrl?: string;
+          skills?: string[];
+          profileSections?: { title?: string; content?: string }[];
+        };
         setName(d.name ?? '');
         setBio(d.bio ?? '');
         setGithubUrl(d.githubUrl ?? '');
         setPortfolioUrl(d.portfolioUrl ?? '');
         setSkills(Array.isArray(d.skills) ? d.skills.join(', ') : '');
+        setProfileSections(
+          Array.isArray(d.profileSections)
+            ? d.profileSections
+                .map((s) => ({
+                  title: (s?.title ?? '').trim(),
+                  content: (s?.content ?? '').trim(),
+                }))
+                .filter((s) => s.title && s.content)
+            : [],
+        );
       })
       .catch(() => setError('Could not load your profile. Try logging in again.'))
       .finally(() => setLoading(false));
@@ -58,6 +76,9 @@ export default function ProfileEdit() {
         githubUrl: githubUrl.trim() || undefined,
         portfolioUrl: portfolioUrl.trim() ? portfolioUrl.trim() : null,
         skills: skills.split(',').map((s) => s.trim()).filter(Boolean),
+        profileSections: profileSections
+          .map((s) => ({ title: s.title.trim(), content: s.content.trim() }))
+          .filter((s) => s.title && s.content),
       });
       updateSessionUser(updated);
       navigate(`/profile/${updated.username}`);
@@ -108,6 +129,59 @@ export default function ProfileEdit() {
         <div>
           <label htmlFor="skills" className="block text-sm font-medium text-slate-300">Skills (comma-separated)</label>
           <input id="skills" value={skills} onChange={(e) => setSkills(e.target.value)} className="input mt-1" placeholder="React, Node.js, TypeScript" />
+        </div>
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="block text-sm font-medium text-slate-300">Custom sections</label>
+            <button
+              type="button"
+              className="btn-secondary text-xs"
+              onClick={() => setProfileSections((prev) => [...prev, { title: '', content: '' }])}
+            >
+              Add section
+            </button>
+          </div>
+          {profileSections.length === 0 ? (
+            <p className="text-xs text-slate-500">Add sections like Experience, Stack, Journey, or Contact.</p>
+          ) : (
+            <div className="space-y-3">
+              {profileSections.map((section, idx) => (
+                <div key={idx} className="rounded-lg border border-slate-700 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <input
+                      value={section.title}
+                      onChange={(e) =>
+                        setProfileSections((prev) =>
+                          prev.map((s, i) => (i === idx ? { ...s, title: e.target.value } : s)),
+                        )
+                      }
+                      className="input"
+                      placeholder="Section title"
+                      maxLength={80}
+                    />
+                    <button
+                      type="button"
+                      className="text-xs text-red-400 hover:underline"
+                      onClick={() => setProfileSections((prev) => prev.filter((_, i) => i !== idx))}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <textarea
+                    value={section.content}
+                    onChange={(e) =>
+                      setProfileSections((prev) =>
+                        prev.map((s, i) => (i === idx ? { ...s, content: e.target.value } : s)),
+                      )
+                    }
+                    className="input mt-2 min-h-[90px] resize-y"
+                    placeholder="Section content"
+                    maxLength={4000}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <button type="submit" className="btn-primary w-full" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
       </form>
