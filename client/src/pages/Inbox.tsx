@@ -15,6 +15,7 @@ export default function Inbox() {
       threadId: string;
       otherUser: { id: string; name: string; username: string; avatarUrl?: string | null };
       lastMessage: { body: string; createdAt: string; senderId: string } | null;
+      unreadCount: number;
       updatedAt: string;
     }[]
   >([]);
@@ -23,6 +24,7 @@ export default function Inbox() {
   >([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const totalUnread = threads.reduce((sum, t) => sum + (t.unreadCount || 0), 0);
 
   useEffect(() => {
     if (!ready) return;
@@ -85,7 +87,7 @@ export default function Inbox() {
           onClick={() => setTab('messages')}
           className={`rounded-lg px-4 py-2 text-sm font-medium ${tab === 'messages' ? 'bg-brand-500/20 text-brand-400' : 'text-slate-400 hover:text-slate-200'}`}
         >
-          Messages
+          Messages {totalUnread > 0 ? `(${totalUnread} new)` : ''}
         </button>
         <button
           type="button"
@@ -115,7 +117,9 @@ export default function Inbox() {
               <li key={row.threadId}>
                 <Link
                   to={`/inbox/${row.otherUser.id}`}
-                  className="card flex items-center gap-3 p-4 transition hover:border-brand-500/40"
+                  className={`card flex items-center gap-3 p-4 transition hover:border-brand-500/40 ${
+                    row.unreadCount > 0 ? 'border-brand-500/40 bg-brand-500/5' : ''
+                  }`}
                 >
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-800 text-slate-400">
                     {row.otherUser.avatarUrl ? (
@@ -125,7 +129,18 @@ export default function Inbox() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="font-medium text-slate-200">{row.otherUser.name}</div>
+                    <div className="flex items-center gap-2 font-medium text-slate-200">
+                      {row.otherUser.name}
+                      {row.unreadCount > 0 ? (
+                        <span className="rounded bg-brand-500/20 px-2 py-0.5 text-[11px] font-mono text-brand-300">
+                          New {row.unreadCount}
+                        </span>
+                      ) : (
+                        <span className="rounded bg-slate-700/70 px-2 py-0.5 text-[11px] font-mono text-slate-400">
+                          Seen
+                        </span>
+                      )}
+                    </div>
                     <div className="truncate text-xs text-slate-500">
                       {row.lastMessage ? row.lastMessage.body : 'No messages yet — say hello'}
                     </div>
