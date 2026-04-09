@@ -7,6 +7,20 @@ import { ownedProjectsVisibleWhere } from '../lib/projectAccess.js';
 
 export const usersRouter = Router();
 
+function normalizeProfileSections(input) {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map((s) => {
+      if (!s || typeof s !== 'object') return null;
+      const title = typeof s.title === 'string' ? s.title.trim() : '';
+      const content = typeof s.content === 'string' ? s.content.trim() : '';
+      if (!title || !content) return null;
+      return { title: title.slice(0, 80), content: content.slice(0, 4000) };
+    })
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
 // Get current user (authenticated) — scalars only so edit/settings never fail on relation/DB drift
 usersRouter.get('/me', requireAuth, async (req, res) => {
   try {
@@ -23,6 +37,7 @@ usersRouter.get('/me', requireAuth, async (req, res) => {
         githubUrl: true,
         portfolioUrl: true,
         skills: true,
+        profileSections: true,
         isAdmin: true,
         createdAt: true,
       },
@@ -164,6 +179,7 @@ usersRouter.get('/:username', optionalAuth, async (req, res) => {
         githubUrl: true,
         portfolioUrl: true,
         skills: true,
+        profileSections: true,
         badges: { select: { badgeType: true, earnedAt: true } },
       },
     });
@@ -259,12 +275,15 @@ usersRouter.patch(
       .withMessage('Portfolio must be a valid http(s) URL or empty'),
     body('skills').optional().isArray(),
     body('skills.*').optional().isString(),
+    body('profileSections').optional().isArray().withMessage('profileSections must be an array'),
+    body('profileSections.*.title').optional().isString().isLength({ min: 1, max: 80 }),
+    body('profileSections.*.content').optional().isString().isLength({ min: 1, max: 4000 }),
   ],
   async (req, res) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-      const { name, bio, githubUrl, portfolioUrl, skills } = req.body;
+      const { name, bio, githubUrl, portfolioUrl, skills, profileSections } = req.body;
       const data = {};
       if (name !== undefined) data.name = name;
       if (bio !== undefined) data.bio = bio === '' ? null : bio;
@@ -274,6 +293,9 @@ usersRouter.patch(
           portfolioUrl === null || portfolioUrl === '' ? null : String(portfolioUrl).trim() || null;
       }
       if (skills !== undefined) data.skills = skills;
+      if (profileSections !== undefined) {
+        data.profileSections = normalizeProfileSections(profileSections);
+      }
       if (Object.keys(data).length === 0) {
         return res.status(400).json({ error: 'No valid fields to update' });
       }
@@ -290,6 +312,7 @@ usersRouter.patch(
           githubUrl: true,
           portfolioUrl: true,
           skills: true,
+          profileSections: true,
           isAdmin: true,
         },
       });
