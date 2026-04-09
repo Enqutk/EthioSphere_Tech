@@ -11,6 +11,7 @@ export type User = {
   /** Self-hosted mini portfolio (GitHub Pages, Vercel, etc.) */
   portfolioUrl?: string | null;
   skills?: string[];
+  profileSections?: { title: string; content: string }[];
   isAdmin?: boolean;
 };
 
