@@ -13,6 +13,7 @@ type Profile = {
   githubUrl?: string | null;
   portfolioUrl?: string | null;
   skills?: string[];
+  profileSections?: { title: string; content: string }[];
   followersCount?: number;
   followingCount?: number;
   followForViewer?: {
@@ -214,10 +215,7 @@ export default function Profile() {
         {profile.portfolioUrl ? (
           <div className="mt-6 rounded-lg border border-brand-600/40 bg-surface-950/60 p-5">
             <p className="label-system">Hosted portfolio</p>
-            <p className="mt-1 text-sm text-slate-400">
-              Personal site you deploy (GitHub Pages, Vercel, Netlify, …). Opens in a new tab — not embedded here.
-            </p>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
+            <div className="mt-4">
               <a
                 href={profile.portfolioUrl}
                 target="_blank"
@@ -226,7 +224,6 @@ export default function Profile() {
               >
                 Open portfolio ↗
               </a>
-              <span className="font-mono text-xs text-slate-500 break-all">{profile.portfolioUrl}</span>
             </div>
           </div>
         ) : isOwn ? (
@@ -253,6 +250,16 @@ export default function Profile() {
             <p className="mt-2 text-sm text-slate-500">No skills listed.</p>
           )}
         </div>
+        {profile.profileSections && profile.profileSections.length > 0 && (
+          <div className="mt-6 border-t border-slate-700 pt-6">
+            {profile.profileSections.map((s, i) => (
+              <section key={`${s.title}-${i}`} className={i > 0 ? 'mt-6' : ''}>
+                <h2 className="font-mono text-sm font-medium uppercase tracking-wide text-slate-400">{s.title}</h2>
+                <p className="mt-2 whitespace-pre-wrap text-sm text-slate-300">{s.content}</p>
+              </section>
+            ))}
+          </div>
+        )}
         {profile.projectsOwned && profile.projectsOwned.length > 0 && (
           <div className="mt-6 border-t border-slate-700 pt-6">
             <h2 className="font-mono text-sm font-medium text-slate-400">Projects</h2>
