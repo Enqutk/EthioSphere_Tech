@@ -78,7 +78,11 @@ JWT_SECRET=your-secret-key
 SERVER_PORT=4000
 ```
 
-The **client** (Vite) proxies `/api` to the backend by default (`http://localhost:4000`). To use a different API URL in dev, set `VITE_API_URL` in `client/.env` (e.g. `VITE_API_URL=http://localhost:4000`).
+The **client** (Vite) proxies `/api` to the backend by default (`http://localhost:4000`). To use a different API URL, set `VITE_API_BASE_URL` in `client/.env` (legacy `VITE_API_URL` also works), for example:
+
+```env
+VITE_API_BASE_URL=http://localhost:4000
+```
 
 ### 3. Database
 
@@ -123,7 +127,7 @@ npm run dev
 - Frontend: [http://localhost:3000](http://localhost:3000)
 - API: [http://localhost:4000](http://localhost:4000)
 
-**Important:** The Vite dev server proxies `/api/*` to the backend (`vite.config.ts`). Set `VITE_API_URL` if the API is not on the default port.
+**Important:** The Vite dev server proxies `/api/*` to the backend (`vite.config.ts`). Set `VITE_API_BASE_URL` (or legacy `VITE_API_URL`) if the API is not on the default port.
 
 From the root you can also run both with:
 
@@ -196,6 +200,34 @@ Protected routes require header: `Authorization: Bearer <token>`.
 - **Phase 3:** GitHub OAuth, mobile, hiring/recruiter features
 
 ## Troubleshooting
+
+### Deploy on Vercel (frontend + API)
+
+Use **two Vercel projects** from the same repo:
+
+1. **API project**
+   - In Vercel: New Project -> Import this repo
+   - **Root Directory:** `server`
+   - Build command: `npm install && npx prisma generate`
+   - `server/vercel.json` routes all requests to `server/api/index.js`
+   - Add env vars in Vercel:
+     - `DATABASE_URL`
+     - `JWT_SECRET`
+     - `CLIENT_ORIGIN` (set to your frontend Vercel URL)
+     - optional: `CHALLENGE_CREATE_MIN_COMPLETED`
+
+2. **Frontend project**
+   - In Vercel: New Project -> Import this repo again
+   - **Root Directory:** `client`
+   - Build command: `npm run build`
+   - Output directory: `dist`
+   - Add env var:
+     - `VITE_API_BASE_URL` = your API Vercel URL (example: `https://programmers-world-api.vercel.app`)
+
+After deploy:
+- Frontend opens on your client project URL
+- Frontend API calls go to your server project URL
+- Keep `CLIENT_ORIGIN` in API env synced with the frontend URL to avoid CORS issues
 
 ### Client: `npm install` fails (network, TAR_ENTRY_ERROR, or ENOTEMPTY)
 
