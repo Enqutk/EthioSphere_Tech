@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { sendRouteError } from '../lib/dbErrors.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 
 export const adminRouter = Router();
@@ -16,8 +17,7 @@ adminRouter.get('/overview', async (req, res) => {
     ]);
     res.json({ users, posts, challenges, projects });
   } catch (err) {
-    console.error('GET /api/admin/overview', err);
-    res.status(500).json({ error: 'Could not load overview' });
+    sendRouteError(res, err, 'GET /api/admin/overview', 'Could not load overview');
   }
 });
 
@@ -36,8 +36,7 @@ adminRouter.get('/posts', async (req, res) => {
     });
     res.json(posts);
   } catch (err) {
-    console.error('GET /api/admin/posts', err);
-    res.status(500).json({ error: 'Could not list posts' });
+    sendRouteError(res, err, 'GET /api/admin/posts', 'Could not list posts');
   }
 });
 
@@ -49,8 +48,7 @@ adminRouter.delete('/posts/:postId', async (req, res) => {
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'Post not found' });
     }
-    console.error('DELETE /api/admin/posts/:postId', err);
-    res.status(500).json({ error: 'Could not delete post' });
+    sendRouteError(res, err, 'DELETE /api/admin/posts/:postId', 'Could not delete post');
   }
 });
 
@@ -71,8 +69,7 @@ adminRouter.get('/users', async (req, res) => {
     });
     res.json(users);
   } catch (err) {
-    console.error('GET /api/admin/users', err);
-    res.status(500).json({ error: 'Could not list users' });
+    sendRouteError(res, err, 'GET /api/admin/users', 'Could not list users');
   }
 });
 
@@ -98,8 +95,7 @@ adminRouter.delete('/users/:userId', async (req, res) => {
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'User not found' });
     }
-    console.error('DELETE /api/admin/users/:userId', err);
-    res.status(500).json({ error: 'Could not delete user' });
+    sendRouteError(res, err, 'DELETE /api/admin/users/:userId', 'Could not delete user');
   }
 });
 
@@ -111,7 +107,6 @@ adminRouter.delete('/challenges/:challengeId', async (req, res) => {
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'Challenge not found' });
     }
-    console.error('DELETE /api/admin/challenges/:challengeId', err);
-    res.status(500).json({ error: 'Could not delete challenge' });
+    sendRouteError(res, err, 'DELETE /api/admin/challenges/:challengeId', 'Could not delete challenge');
   }
 });
