@@ -11,6 +11,17 @@ type ApiOptions = RequestInit & {
 const DEFAULT_GET_CACHE_MS = 15_000;
 const getCache = new Map<string, { expiresAt: number; data: unknown }>();
 const inFlightGets = new Map<string, Promise<unknown>>();
+const API_BASE =
+  ((import.meta.env?.VITE_API_BASE_URL as string | undefined) ||
+    (import.meta.env?.VITE_API_URL as string | undefined) ||
+    '')
+  .trim()
+  .replace(/\/+$/, '');
+
+function toApiUrl(path: string) {
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE}${normalized}`;
+}
 
 function cacheKey(path: string, token?: string) {
   return `${path}::${token || ''}`;
@@ -99,7 +110,7 @@ export async function api<T>(
   options: ApiOptions = {},
 ): Promise<T> {
   const { token, cacheMs = DEFAULT_GET_CACHE_MS, ...init } = options;
-  const url = `${path.startsWith('/') ? path : `/${path}`}`;
+  const url = toApiUrl(path);
   const method = (init.method || 'GET').toUpperCase();
   const isGet = method === 'GET';
 
@@ -164,7 +175,7 @@ export async function apiWithResponse<T>(
   options: ApiOptions = {},
 ): Promise<{ data: T; response: Response }> {
   const { token, ...init } = options;
-  const url = `${path.startsWith('/') ? path : `/${path}`}`;
+  const url = toApiUrl(path);
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(init.headers as Record<string, string>),
