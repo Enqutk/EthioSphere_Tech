@@ -1,191 +1,46 @@
 import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
-import { extrasForPrismaError } from '../lib/dbErrors.js';
+import { sendRouteError } from '../lib/dbErrors.js';
 import { postPulseScore } from '../lib/pulseScore.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import { parseGithubRepo, verifyPublicGithubRepo } from '../lib/githubPublic.js';
 import { canViewProject } from '../lib/projectAccess.js';
+import {
+  getPostProjectSelect,
+  listPostsForViewer,
+  getPostDetailForViewer,
+  projectPayloadForViewer,
+  postVoteTalliesForIds,
+  shapePostListItem,
+} from '../services/postsService.js';
 
 export const postsRouter = Router();
+const postProjectSelect = getPostProjectSelect();
 
-const postProjectSelect = {
-  id: true,
-  title: true,
-  githubFullName: true,
-  visibility: true,
-  ownerId: true,
-};
-
-async function projectPayloadForViewer(prismaClient, project, viewerId) {
-  if (!project) return null;
-  const ok = await canViewProject(prismaClient, project, viewerId);
-  if (!ok) return null;
-  return { id: project.id, title: project.title, githubFullName: project.githubFullName };
-}
-
-/** @returns {Promise<Map<string, { up: number, down: number }>>} */
-async function postVoteTalliesForIds(postIds) {
-  const map = new Map();
-  for (const id of postIds) map.set(id, { up: 0, down: 0 });
-  if (!postIds.length) return map;
-  const rows = await prisma.postVote.groupBy({
-    by: ['postId', 'upvote'],
-    where: { postId: { in: postIds } },
-    _count: { _all: true },
-  });
-  for (const r of rows) {
-    const cur = map.get(r.postId);
-    if (!cur) continue;
-    if (r.upvote) cur.up = r._count._all;
-    else cur.down = r._count._all;
-  }
-  return map;
-}
-
-async function viewerVotesForPosts(viewerId, postIds) {
-  const map = new Map();
-  if (!viewerId || !postIds.length) return map;
-  const rows = await prisma.postVote.findMany({
-    where: { userId: viewerId, postId: { in: postIds } },
-    select: { postId: true, upvote: true },
-  });
-  for (const r of rows) map.set(r.postId, r.upvote);
-  return map;
-}
-
-function shapePostListItem(p, tallies, viewerVoteMap, project) {
-  const { _count, project: _proj, ...rest } = p;
-  const t = tallies.get(p.id) || { up: 0, down: 0 };
-  const commentCount = _count.comments;
-  const pulseScore = postPulseScore({
-    upvotes: t.up,
-    downvotes: t.down,
-    viewCount: p.viewCount,
-    commentCount,
-  });
-  const viewerVote = viewerVoteMap.has(p.id) ? (viewerVoteMap.get(p.id) ? 'up' : 'down') : null;
-  return {
-    ...rest,
-    project,
-    upvotes: t.up,
-    downvotes: t.down,
-    pulseScore,
-    commentCount,
-    viewerVote,
-  };
-}
-
-// List posts (community)
 postsRouter.get('/', optionalAuth, async (req, res) => {
   try {
-    const { section, search } = req.query;
-    const where = {};
-    if (section) where.section = section;
-    if (search && String(search).trim()) {
-      where.OR = [
-        { title: { contains: String(search).trim(), mode: 'insensitive' } },
-        { body: { contains: String(search).trim(), mode: 'insensitive' } },
-      ];
-    }
-    const posts = await prisma.post.findMany({
-      where,
-      include: {
-        author: { select: { id: true, name: true, username: true, avatarUrl: true, rank: true } },
-        project: { select: postProjectSelect },
-        _count: { select: { comments: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
+    const out = await listPostsForViewer({
+      section: req.query.section,
+      search: req.query.search,
+      viewerId: req.user?.id,
     });
-    const viewerId = req.user?.id;
-    const ids = posts.map((p) => p.id);
-    const [tallies, viewerVoteMap] = await Promise.all([
-      postVoteTalliesForIds(ids),
-      viewerVotesForPosts(viewerId, ids),
-    ]);
-    const shaped = await Promise.all(
-      posts.map(async (p) => {
-        const project = await projectPayloadForViewer(prisma, p.project, viewerId);
-        return shapePostListItem(p, tallies, viewerVoteMap, project);
-      }),
-    );
-    res.json(shaped);
+    res.json(out);
   } catch (err) {
-    console.error('GET /api/posts', err);
-    const dev = process.env.NODE_ENV !== 'production';
-    const { hint, prismaCode } = extrasForPrismaError(err);
-    res.status(500).json({
-      error: 'Could not list posts',
-      ...(dev && { details: String(err?.message ?? err), code: prismaCode }),
-      ...(hint && { hint }),
-    });
+    sendRouteError(res, err, 'GET /api/posts', 'Could not list posts');
   }
 });
 
-// Get one post with comments (+ view increment)
 postsRouter.get('/:id', optionalAuth, async (req, res) => {
   try {
-    const post = await prisma.post.findUnique({
-      where: { id: req.params.id },
-      include: {
-        author: { select: { id: true, name: true, username: true, avatarUrl: true, rank: true } },
-        project: { select: postProjectSelect },
-        comments: {
-          include: { author: { select: { id: true, name: true, username: true, avatarUrl: true } } },
-          orderBy: { createdAt: 'asc' },
-        },
-        _count: { select: { comments: true } },
-      },
-    });
-    if (!post) return res.status(404).json({ error: 'Post not found' });
-    await prisma.post.update({
-      where: { id: post.id },
-      data: { viewCount: { increment: 1 } },
-    });
-    const viewCount = post.viewCount + 1;
-    const viewerId = req.user?.id;
-    const project = await projectPayloadForViewer(prisma, post.project, viewerId);
-    const tallies = await postVoteTalliesForIds([post.id]);
-    const t = tallies.get(post.id) || { up: 0, down: 0 };
-    const commentCount = post._count.comments;
-    const pulseScore = postPulseScore({
-      upvotes: t.up,
-      downvotes: t.down,
-      viewCount,
-      commentCount,
-    });
-    let viewerVote = null;
-    if (viewerId) {
-      const v = await prisma.postVote.findUnique({
-        where: { postId_userId: { postId: post.id, userId: viewerId } },
-      });
-      if (v) viewerVote = v.upvote ? 'up' : 'down';
-    }
-    const { project: _p, _count, ...rest } = post;
-    res.json({
-      ...rest,
-      viewCount,
-      project,
-      upvotes: t.up,
-      downvotes: t.down,
-      pulseScore,
-      commentCount,
-      viewerVote,
-    });
+    const out = await getPostDetailForViewer(req.params.id, req.user?.id);
+    if (!out) return res.status(404).json({ error: 'Post not found' });
+    res.json(out);
   } catch (err) {
-    console.error('GET /api/posts/:id', err);
-    const dev = process.env.NODE_ENV !== 'production';
-    const { hint, prismaCode } = extrasForPrismaError(err);
-    res.status(500).json({
-      error: 'Could not load post',
-      ...(dev && { details: String(err?.message ?? err), code: prismaCode }),
-      ...(hint && { hint }),
-    });
+    sendRouteError(res, err, 'GET /api/posts/:id', 'Could not load post');
   }
 });
 
-// Create post (auth required)
 postsRouter.post(
   '/',
   requireAuth,
@@ -260,24 +115,16 @@ postsRouter.post(
           _count: { select: { comments: true } },
         },
       });
-      const safeProject = await projectPayloadForViewer(prisma, post.project, req.user.id);
+      const safeProject = await projectPayloadForViewer(post.project, req.user.id);
       const tallies = await postVoteTalliesForIds([post.id]);
       const shaped = shapePostListItem(post, tallies, new Map(), safeProject);
       res.status(201).json(shaped);
     } catch (err) {
-      console.error('POST /api/posts', err);
-      const dev = process.env.NODE_ENV !== 'production';
-      const { hint, prismaCode } = extrasForPrismaError(err);
-      res.status(500).json({
-        error: 'Could not create post',
-        ...(dev && { details: String(err?.message ?? err), code: prismaCode }),
-        ...(hint && { hint }),
-      });
+      sendRouteError(res, err, 'POST /api/posts', 'Could not create post');
     }
   },
 );
 
-// Add comment
 postsRouter.post(
   '/:id/comments',
   requireAuth,
@@ -303,19 +150,11 @@ postsRouter.post(
       }
       res.status(201).json(comment);
     } catch (err) {
-      console.error('POST /api/posts/:id/comments', err);
-      const dev = process.env.NODE_ENV !== 'production';
-      const { hint, prismaCode } = extrasForPrismaError(err);
-      res.status(500).json({
-        error: 'Could not add comment',
-        ...(dev && { details: String(err?.message ?? err), code: prismaCode }),
-        ...(hint && { hint }),
-      });
+      sendRouteError(res, err, 'POST /api/posts/:id/comments', 'Could not add comment');
     }
   },
 );
 
-// Upvote/downvote (auth required)
 postsRouter.post('/:id/vote', requireAuth, [body('upvote').isBoolean()], async (req, res) => {
   try {
     const post = await prisma.post.findUnique({
@@ -345,13 +184,6 @@ postsRouter.post('/:id/vote', requireAuth, [body('upvote').isBoolean()], async (
       viewerVote: upvote ? 'up' : 'down',
     });
   } catch (err) {
-    console.error('POST /api/posts/:id/vote', err);
-    const dev = process.env.NODE_ENV !== 'production';
-    const { hint, prismaCode } = extrasForPrismaError(err);
-    res.status(500).json({
-      error: 'Could not record vote',
-      ...(dev && { details: String(err?.message ?? err), code: prismaCode }),
-      ...(hint && { hint }),
-    });
+    sendRouteError(res, err, 'POST /api/posts/:id/vote', 'Could not record vote');
   }
 });
