@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
+import { sendRouteError } from '../lib/dbErrors.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import { canUserCreateChallenge, challengeCreateRequirementText } from '../lib/challengeEligibility.js';
 import { parseGithubRepo, verifyPublicGithubRepo } from '../lib/githubPublic.js';
@@ -11,22 +12,6 @@ function parseOptionalDate(v) {
   if (v == null || v === '') return null;
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function sendPrismaError(res, err, logLabel, userMessage = 'Something went wrong') {
-  console.error(logLabel, err);
-  const dev = process.env.NODE_ENV !== 'production';
-  const hint =
-    err.code === 'P1001' || /reach database server at|Can't reach database server/i.test(String(err.message))
-      ? 'Database unreachable — wake the project in the Neon dashboard and confirm DATABASE_URL in server/.env uses sslmode=require.'
-      : err.code === 'P2022' || /column .* does not exist|Unknown column/i.test(String(err.message))
-        ? 'Schema out of date. Run: cd server && npx prisma db push && npx prisma generate, then restart the API.'
-        : undefined;
-  res.status(500).json({
-    error: userMessage,
-    ...(dev && { details: err.message, code: err.code }),
-    ...(hint && { hint }),
-  });
 }
 
 // List challenges
@@ -55,7 +40,7 @@ challengesRouter.get('/', optionalAuth, async (req, res) => {
       createRequirement: challengeCreateRequirementText(),
     });
   } catch (err) {
-    sendPrismaError(res, err, 'GET /api/challenges', 'Could not list challenges');
+    sendRouteError(res, err, 'GET /api/challenges', 'Could not list challenges');
   }
 });
 
@@ -114,7 +99,7 @@ challengesRouter.get('/:id', optionalAuth, async (req, res) => {
       },
     });
   } catch (err) {
-    sendPrismaError(res, err, 'GET /api/challenges/:id', 'Could not load challenge');
+    sendRouteError(res, err, 'GET /api/challenges/:id', 'Could not load challenge');
   }
 });
 
@@ -189,7 +174,7 @@ challengesRouter.post(
       });
       res.status(201).json(submission);
     } catch (err) {
-      sendPrismaError(res, err, 'POST /api/challenges/:id/submit', 'Could not submit solution');
+      sendRouteError(res, err, 'POST /api/challenges/:id/submit', 'Could not submit solution');
     }
   }
 );
@@ -235,7 +220,7 @@ challengesRouter.post(
       });
       res.status(201).json(challenge);
     } catch (err) {
-      sendPrismaError(res, err, 'POST /api/challenges', 'Could not create challenge');
+      sendRouteError(res, err, 'POST /api/challenges', 'Could not create challenge');
     }
   }
 );
