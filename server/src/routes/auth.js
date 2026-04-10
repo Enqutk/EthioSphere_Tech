@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
+import { sendRouteError } from '../lib/dbErrors.js';
 import { signToken } from '../middleware/auth.js';
 import { parseGithubUserLogin, fetchGithubUser, inferRankFromGithub } from '../lib/githubPublic.js';
 
@@ -76,19 +77,7 @@ authRouter.post(
       const token = signToken({ userId: user.id });
       res.status(201).json({ user, token, ...(githubNote && { githubNote }) });
     } catch (err) {
-      console.error('POST /api/auth/register', err);
-      const dev = process.env.NODE_ENV !== 'production';
-      const hint =
-        err.code === 'P1001'
-          ? 'Cannot reach PostgreSQL. Check DATABASE_URL and that the database is running.'
-          : err.code === 'P2021' || err.message?.includes('does not exist')
-            ? 'Database tables missing. Run: cd server && npx prisma db push'
-            : null;
-      res.status(500).json({
-        error: 'Registration failed',
-        ...(dev && { details: err.message, code: err.code }),
-        ...(hint && { hint }),
-      });
+      sendRouteError(res, err, 'POST /api/auth/register', 'Registration failed');
     }
   }
 );
@@ -140,21 +129,7 @@ authRouter.post(
         token,
       });
     } catch (err) {
-      console.error('POST /api/auth/login', err);
-      const dev = process.env.NODE_ENV !== 'production';
-      const hint =
-        err.code === 'P1001'
-          ? 'Cannot reach PostgreSQL. Check DATABASE_URL and that the database is running (Neon: wake project, use sslmode=require).'
-          : err.code === 'P2021' || err.message?.includes('does not exist')
-            ? 'Database tables or columns are out of date. Run: cd server && npx prisma db push'
-            : err.code === 'P2022' || /column .* does not exist/i.test(String(err.message))
-              ? 'Database schema mismatch. Run: cd server && npx prisma db push && npx prisma generate, then restart the API.'
-              : null;
-      res.status(500).json({
-        error: 'Login failed',
-        ...(dev && { details: err.message, code: err.code }),
-        ...(hint && { hint }),
-      });
+      sendRouteError(res, err, 'POST /api/auth/login', 'Login failed');
     }
   }
 );
