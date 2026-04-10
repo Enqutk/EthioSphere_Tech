@@ -1,62 +1,27 @@
 import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
-import { prisma } from '../lib/prisma.js';
-import { extrasForPrismaError } from '../lib/dbErrors.js';
+import { sendRouteError } from '../lib/dbErrors.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
-import { ownedProjectsVisibleWhere } from '../lib/projectAccess.js';
+import {
+  normalizeProfileSections,
+  getCurrentUserProfile,
+  discoverUsers,
+  getPublicProfileByUsername,
+  updateCurrentUserProfile,
+} from '../services/usersService.js';
 
 export const usersRouter = Router();
 
-function normalizeProfileSections(input) {
-  if (!Array.isArray(input)) return [];
-  return input
-    .map((s) => {
-      if (!s || typeof s !== 'object') return null;
-      const title = typeof s.title === 'string' ? s.title.trim() : '';
-      const content = typeof s.content === 'string' ? s.content.trim() : '';
-      if (!title || !content) return null;
-      return { title: title.slice(0, 80), content: content.slice(0, 4000) };
-    })
-    .filter(Boolean)
-    .slice(0, 12);
-}
-
-// Get current user (authenticated) — scalars only so edit/settings never fail on relation/DB drift
 usersRouter.get('/me', requireAuth, async (req, res) => {
   try {
-    const full = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        username: true,
-        avatarUrl: true,
-        bio: true,
-        rank: true,
-        githubUrl: true,
-        portfolioUrl: true,
-        skills: true,
-        profileSections: true,
-        isAdmin: true,
-        createdAt: true,
-      },
-    });
+    const full = await getCurrentUserProfile(req.user.id);
     if (!full) return res.status(404).json({ error: 'User not found' });
     res.json(full);
   } catch (err) {
-    console.error('GET /api/users/me', err);
-    const dev = process.env.NODE_ENV !== 'production';
-    const { hint, prismaCode } = extrasForPrismaError(err);
-    res.status(500).json({
-      error: 'Could not load profile',
-      ...(dev && { details: err.message, code: prismaCode }),
-      ...(hint && { hint }),
-    });
+    sendRouteError(res, err, 'GET /api/users/me', 'Could not load profile');
   }
 });
 
-// Discover people (search + previews) — must be registered before GET /:username
 usersRouter.get('/discover', optionalAuth, async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();
@@ -64,71 +29,7 @@ usersRouter.get('/discover', optionalAuth, async (req, res) => {
     const viewerId = req.user?.id;
     const take = Math.min(40, Math.max(1, parseInt(String(req.query.limit), 10) || 24));
 
-    const andParts = [];
-    if (viewerId) andParts.push({ NOT: { id: viewerId } });
-    if (skill) andParts.push({ skills: { has: skill } });
-    if (q) {
-      andParts.push({
-        OR: [
-          { username: { contains: q, mode: 'insensitive' } },
-          { name: { contains: q, mode: 'insensitive' } },
-          { bio: { contains: q, mode: 'insensitive' } },
-        ],
-      });
-    }
-
-    const where = andParts.length ? { AND: andParts } : {};
-
-    const users = await prisma.user.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take,
-      select: {
-        id: true,
-        name: true,
-        username: true,
-        avatarUrl: true,
-        bio: true,
-        rank: true,
-        skills: true,
-        projectsOwned: {
-          where: { visibility: 'PUBLIC' },
-          orderBy: { createdAt: 'desc' },
-          take: 2,
-          select: { id: true, title: true, githubFullName: true },
-        },
-        posts: {
-          orderBy: { createdAt: 'desc' },
-          take: 2,
-          select: { id: true, title: true, section: true },
-        },
-      },
-    });
-
-    const followByUserId = {};
-    if (viewerId && users.length > 0) {
-      const ids = users.map((u) => u.id);
-      const [outboundRows, inboundRows] = await Promise.all([
-        prisma.follow.findMany({
-          where: { followerId: viewerId, followingId: { in: ids } },
-        }),
-        prisma.follow.findMany({
-          where: { followerId: { in: ids }, followingId: viewerId },
-        }),
-      ]);
-      for (const u of users) {
-        const ob = outboundRows.find((f) => f.followingId === u.id);
-        const ib = inboundRows.find((f) => f.followerId === u.id);
-        if (ob) {
-          followByUserId[u.id] = { direction: 'outbound', status: ob.status, id: ob.id };
-        } else if (ib) {
-          followByUserId[u.id] = { direction: 'inbound', status: ib.status, id: ib.id };
-        } else {
-          followByUserId[u.id] = { direction: 'none', status: null, id: null };
-        }
-      }
-    }
-
+    const { users, followByUserId } = await discoverUsers({ q, skill, viewerId, take });
     const RANK_LABELS = {
       NEWBIE: 'Newbie',
       JUNIOR_DEV: 'Junior Dev',
@@ -144,18 +45,10 @@ usersRouter.get('/discover', optionalAuth, async (req, res) => {
       })),
     );
   } catch (err) {
-    console.error('GET /api/users/discover', err);
-    const dev = process.env.NODE_ENV !== 'production';
-    const { hint, prismaCode } = extrasForPrismaError(err);
-    res.status(500).json({
-      error: 'Could not search people',
-      ...(dev && { details: err.message, code: prismaCode }),
-      ...(hint && { hint }),
-    });
+    sendRouteError(res, err, 'GET /api/users/discover', 'Could not search people');
   }
 });
 
-// Get public profile by username
 usersRouter.get('/:username', optionalAuth, async (req, res) => {
   try {
     const raw = req.params.username;
@@ -167,83 +60,14 @@ usersRouter.get('/:username', optionalAuth, async (req, res) => {
       return res.status(400).json({ error: 'Invalid username' });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { username },
-      select: {
-        id: true,
-        name: true,
-        username: true,
-        avatarUrl: true,
-        bio: true,
-        rank: true,
-        githubUrl: true,
-        portfolioUrl: true,
-        skills: true,
-        profileSections: true,
-        badges: { select: { badgeType: true, earnedAt: true } },
-      },
-    });
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    const viewerId = req.user?.id;
-    const projectsOwned = await prisma.project.findMany({
-      where: ownedProjectsVisibleWhere(user.id, viewerId),
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        type: true,
-        visibility: true,
-        seekingReview: true,
-        githubFullName: true,
-        githubHtmlUrl: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
-
-    const [followersAccepted, followingAccepted] = await Promise.all([
-      prisma.follow.count({ where: { followingId: user.id, status: 'ACCEPTED' } }),
-      prisma.follow.count({ where: { followerId: user.id, status: 'ACCEPTED' } }),
-    ]);
-
-    let followForViewer = null;
-    if (viewerId && viewerId !== user.id) {
-      const outbound = await prisma.follow.findUnique({
-        where: { followerId_followingId: { followerId: viewerId, followingId: user.id } },
-      });
-      const inbound = await prisma.follow.findUnique({
-        where: { followerId_followingId: { followerId: user.id, followingId: viewerId } },
-      });
-      if (outbound) {
-        followForViewer = { direction: 'outbound', status: outbound.status, id: outbound.id };
-      } else if (inbound) {
-        followForViewer = { direction: 'inbound', status: inbound.status, id: inbound.id };
-      } else {
-        followForViewer = { direction: 'none', status: null, id: null };
-      }
-    }
-
-    res.json({
-      ...user,
-      projectsOwned,
-      followersCount: followersAccepted,
-      followingCount: followingAccepted,
-      followForViewer,
-    });
+    const profile = await getPublicProfileByUsername(username, req.user?.id);
+    if (!profile) return res.status(404).json({ error: 'User not found' });
+    res.json(profile);
   } catch (err) {
-    console.error('GET /api/users/:username', err);
-    const dev = process.env.NODE_ENV !== 'production';
-    const { hint, prismaCode } = extrasForPrismaError(err);
-    res.status(500).json({
-      error: 'Could not load profile',
-      ...(dev && { details: err.message, code: prismaCode }),
-      ...(hint && { hint }),
-    });
+    sendRouteError(res, err, 'GET /api/users/:username', 'Could not load profile');
   }
 });
 
-// Update own profile
 usersRouter.patch(
   '/me',
   requireAuth,
@@ -283,6 +107,7 @@ usersRouter.patch(
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
       const { name, bio, githubUrl, portfolioUrl, skills, profileSections } = req.body;
       const data = {};
       if (name !== undefined) data.name = name;
@@ -293,43 +118,16 @@ usersRouter.patch(
           portfolioUrl === null || portfolioUrl === '' ? null : String(portfolioUrl).trim() || null;
       }
       if (skills !== undefined) data.skills = skills;
-      if (profileSections !== undefined) {
-        data.profileSections = normalizeProfileSections(profileSections);
-      }
+      if (profileSections !== undefined) data.profileSections = normalizeProfileSections(profileSections);
+
       if (Object.keys(data).length === 0) {
         return res.status(400).json({ error: 'No valid fields to update' });
       }
-      const user = await prisma.user.update({
-        where: { id: req.user.id },
-        data,
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          avatarUrl: true,
-          bio: true,
-          rank: true,
-          githubUrl: true,
-          portfolioUrl: true,
-          skills: true,
-          profileSections: true,
-          isAdmin: true,
-        },
-      });
+
+      const user = await updateCurrentUserProfile(req.user.id, data);
       res.json(user);
     } catch (err) {
-      console.error('PATCH /api/users/me', err);
-      const dev = process.env.NODE_ENV !== 'production';
-      const code = err.code;
-      const hint =
-        code === 'P2022' || /column .* does not exist|Unknown column/i.test(String(err.message))
-          ? 'Run `npx prisma db push` from the server folder so the database matches schema (e.g. updated_at on User).'
-          : undefined;
-      res.status(500).json({
-        error: 'Could not update profile',
-        ...(dev && { details: err.message, code }),
-        ...(hint && { hint }),
-      });
+      sendRouteError(res, err, 'PATCH /api/users/me', 'Could not update profile');
     }
-  }
+  },
 );
