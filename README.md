@@ -4,6 +4,7 @@ A unified platform for programmers to **learn**, **build**, **compete**, and **c
 
 ## What's included (MVP)
 
+
 - **User authentication** — Register, login, JWT
 - 
 - **Developer profiles** — Username, bio, skills, rank, projects, badges; optional **hosted portfolio URL** (your own static site on GitHub Pages, Vercel, etc.) linked from the profile
