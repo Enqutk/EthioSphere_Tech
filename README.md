@@ -1,5 +1,6 @@
 # 🌍 Programmers World
 
+
 A unified platform for programmers to **learn**, **build**, **compete**, and **collaborate**. Built for students and early-career developers, scalable for professionals and companies.
 
 ## What's included (MVP)
