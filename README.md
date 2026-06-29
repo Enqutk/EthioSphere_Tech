@@ -205,12 +205,14 @@ Protected routes require header: `Authorization: Bearer <token>`.
 
 ### Deploy on Vercel (frontend + API)
 
+**Do not deploy from the repo root.** The root `package.json` is for local `npm run dev` only. Vercel must use **two separate projects**, each with its own **Root Directory**.
+
 Use **two Vercel projects** from the same repo:
 
 1. **API project**
    - In Vercel: New Project -> Import this repo
-   - **Root Directory:** `server`
-   - Build command: `npm install && npx prisma generate`
+   - **Root Directory:** `server` (Project Settings -> General -> Root Directory -> Edit -> set to `server`)
+   - Build command: `npm run build` (runs `prisma generate`) or `npm install && npx prisma generate`
    - `server/vercel.json` routes all requests to `server/api/index.js`
    - Add env vars in Vercel:
      - `DATABASE_URL`
@@ -230,6 +232,18 @@ After deploy:
 - Frontend opens on your client project URL
 - Frontend API calls go to your server project URL
 - Keep `CLIENT_ORIGIN` in API env synced with the frontend URL to avoid CORS issues
+
+### Vercel: `Missing script: "build"` or root `npm run build` fails
+
+The build log shows `programmers-world@1.0.0 build` and `npm run build --prefix server` — that means **Root Directory is the repo root**, not `server` or `client`.
+
+Fix:
+
+1. Open the Vercel project -> **Settings** -> **General** -> **Root Directory**
+2. For the API: set **`server`**, save, redeploy
+3. For the frontend: create a **second** project with Root Directory **`client`**, Output **`dist`**
+
+Each project installs and builds only its own folder.
 
 ### Client: `npm install` fails (network, TAR_ENTRY_ERROR, or ENOTEMPTY)
 
