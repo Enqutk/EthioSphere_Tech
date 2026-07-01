@@ -1,3 +1,11 @@
+export type PrimaryDiscipline = 'DEVELOPER' | 'UI_UX' | 'GRAPHICS' | 'DEVOPS' | 'PM';
+
+export type DesignLinks = {
+  figma?: string;
+  behance?: string;
+  dribbble?: string;
+};
+
 export type User = {
   id: string;
   email?: string;
@@ -7,6 +15,8 @@ export type User = {
   bio?: string | null;
   rank: string;
   accountType?: 'DEVELOPER' | 'COMPANY';
+  primaryDiscipline?: PrimaryDiscipline;
+  designLinks?: DesignLinks | null;
   company?: {
     id: string;
     legalName: string;
@@ -36,6 +46,8 @@ export type DiscoverUser = {
   bio?: string | null;
   rank: string;
   rankLabel?: string;
+  primaryDiscipline?: PrimaryDiscipline;
+  disciplineLabel?: string;
   skills?: string[];
   projectsOwned: { id: string; title: string; githubFullName?: string | null }[];
   posts: { id: string; title: string; section: string }[];

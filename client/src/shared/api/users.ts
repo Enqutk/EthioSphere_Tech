@@ -3,10 +3,11 @@ import type { DiscoverUser, User } from './types';
 
 export const usersApi = {
   me: (token: string) => api<Record<string, unknown>>('/api/users/me', { token }),
-  discover: (params?: { q?: string; skill?: string; limit?: number }, token?: string | null) => {
+  discover: (params?: { q?: string; skill?: string; discipline?: string; limit?: number }, token?: string | null) => {
     const q = new URLSearchParams();
     if (params?.q?.trim()) q.set('q', params.q.trim());
     if (params?.skill?.trim()) q.set('skill', params.skill.trim());
+    if (params?.discipline?.trim()) q.set('discipline', params.discipline.trim());
     if (params?.limit != null) q.set('limit', String(params.limit));
     const qs = q.toString();
     return api<DiscoverUser[]>(`/api/users/discover${qs ? `?${qs}` : ''}`, token ? { token } : {});

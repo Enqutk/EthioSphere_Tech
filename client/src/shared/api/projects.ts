@@ -25,6 +25,7 @@ export const projectsApi = {
       type?: string;
       visibility?: 'PUBLIC' | 'FOLLOWERS_ONLY' | 'PRIVATE';
       seekingReview?: boolean;
+      rolesNeeded?: string[];
     },
   ) => api<unknown>('/api/projects', { method: 'POST', body: JSON.stringify(body), token }),
   patch: (token: string, id: string, body: Record<string, unknown>) =>
