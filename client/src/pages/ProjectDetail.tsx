@@ -6,6 +6,13 @@ import { getStoredToken } from '@/shared/components/AuthProvider';
 import { FollowCreatorActions } from '@/shared/components/FollowCreatorActions';
 import { ReadmePreview } from '@/shared/components/ReadmePreview';
 import { PulseStrip } from '@/shared/components/PulseStrip';
+import { RolesNeededPicker, RolesNeededBadges } from '@/shared/components/RolesNeededPicker';
+import {
+  PROJECT_TEAM_ROLES,
+  PROJECT_ROLE_LABELS,
+  type ProjectTeamRole,
+  type PrimaryDiscipline,
+} from '@/shared/constants/disciplines';
 
 type GithubRepoInfo = {
   full_name?: string;
@@ -56,6 +63,7 @@ type Project = {
   type: string;
   visibility?: string;
   seekingReview?: boolean;
+  rolesNeeded?: string[];
   githubHtmlUrl?: string | null;
   githubFullName?: string | null;
   githubData?: GithubDataBundle | null;
@@ -105,11 +113,12 @@ export default function ProjectDetail() {
   const { user } = useAuth();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [joinRole, setJoinRole] = useState('fullstack');
+  const [joinRole, setJoinRole] = useState<ProjectTeamRole>('fullstack');
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
   const [editVis, setEditVis] = useState<'PUBLIC' | 'FOLLOWERS_ONLY' | 'PRIVATE'>('PUBLIC');
   const [editSeeking, setEditSeeking] = useState(false);
+  const [editRolesNeeded, setEditRolesNeeded] = useState<ProjectTeamRole[]>([]);
   const [ownerSaving, setOwnerSaving] = useState(false);
   const [likeBusy, setLikeBusy] = useState(false);
 
@@ -149,7 +158,22 @@ export default function ProjectDetail() {
     const v = project.visibility;
     if (v === 'FOLLOWERS_ONLY' || v === 'PRIVATE' || v === 'PUBLIC') setEditVis(v);
     setEditSeeking(!!project.seekingReview);
-  }, [project?.id, project?.visibility, project?.seekingReview]);
+    setEditRolesNeeded((project.rolesNeeded ?? []).filter((r): r is ProjectTeamRole =>
+      PROJECT_TEAM_ROLES.includes(r as ProjectTeamRole),
+    ));
+  }, [project?.id, project?.visibility, project?.seekingReview, project?.rolesNeeded]);
+
+  useEffect(() => {
+    if (!user?.primaryDiscipline) return;
+    const map: Record<PrimaryDiscipline, ProjectTeamRole> = {
+      DEVELOPER: 'fullstack',
+      UI_UX: 'ui_ux',
+      GRAPHICS: 'graphics',
+      DEVOPS: 'devops',
+      PM: 'pm',
+    };
+    setJoinRole(map[user.primaryDiscipline] ?? 'fullstack');
+  }, [user?.primaryDiscipline]);
 
   async function handleJoin() {
     const token = getStoredToken();
@@ -197,7 +221,11 @@ export default function ProjectDetail() {
     if (!token || !id) return;
     setOwnerSaving(true);
     try {
-      await projectsApi.patch(token, id, { visibility: editVis, seekingReview: editSeeking });
+      await projectsApi.patch(token, id, {
+        visibility: editVis,
+        seekingReview: editSeeking,
+        rolesNeeded: editRolesNeeded,
+      });
       const updated = await projectsApi.get(id, token);
       setProject(updated as Project);
     } finally {
@@ -229,6 +257,11 @@ export default function ProjectDetail() {
                 <span className="rounded bg-brand-500/20 px-2 py-0.5 text-xs text-brand-400">Seeking review</span>
               )}
             </div>
+            {project.rolesNeeded && project.rolesNeeded.length > 0 && (
+              <div className="mt-3">
+                <RolesNeededBadges roles={project.rolesNeeded} />
+              </div>
+            )}
           </div>
           <div className="flex flex-col items-end gap-2 text-right">
             <Link to={`/profile/${project.owner.username}`} className="flex items-center gap-2 text-sm text-slate-400 hover:text-brand-400">
@@ -320,6 +353,12 @@ export default function ProjectDetail() {
                 <input type="checkbox" checked={editSeeking} onChange={(e) => setEditSeeking(e.target.checked)} />
                 Open to review / allow DMs from this page
               </label>
+              <div>
+                <p className="text-sm text-slate-400">Roles recruiting</p>
+                <div className="mt-2">
+                  <RolesNeededPicker value={editRolesNeeded} onChange={setEditRolesNeeded} idPrefix="edit" />
+                </div>
+              </div>
               <button type="button" onClick={handleOwnerSave} className="btn-secondary text-sm" disabled={ownerSaving}>
                 {ownerSaving ? 'Saving…' : 'Save settings'}
               </button>
@@ -474,7 +513,9 @@ export default function ProjectDetail() {
               </li>
               {project.members.map((m) => (
                 <li key={m.user.id} className="flex items-center gap-2 text-sm">
-                  <span className="rounded bg-surface-800 px-2 py-0.5 text-slate-400">{m.role}</span>
+                  <span className="rounded bg-surface-800 px-2 py-0.5 text-slate-400">
+                    {PROJECT_ROLE_LABELS[m.role as ProjectTeamRole] ?? m.role}
+                  </span>
                   <Link to={`/profile/${m.user.username}`} className="text-slate-300 hover:text-brand-400">{m.user.username}</Link>
                 </li>
               ))}
@@ -486,11 +527,10 @@ export default function ProjectDetail() {
             <h2 className="font-mono text-sm font-medium text-slate-400">Join this project</h2>
             {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
             <div className="mt-3 flex flex-wrap items-center gap-3">
-              <select value={joinRole} onChange={(e) => setJoinRole(e.target.value)} className="input w-auto">
-                <option value="frontend">Frontend</option>
-                <option value="backend">Backend</option>
-                <option value="ui_ux">UI/UX</option>
-                <option value="fullstack">Fullstack</option>
+              <select value={joinRole} onChange={(e) => setJoinRole(e.target.value as ProjectTeamRole)} className="input w-auto">
+                {PROJECT_TEAM_ROLES.map((role) => (
+                  <option key={role} value={role}>{PROJECT_ROLE_LABELS[role]}</option>
+                ))}
               </select>
               <button type="button" onClick={handleJoin} className="btn-primary" disabled={joining}>{joining ? 'Joining…' : 'Join'}</button>
             </div>

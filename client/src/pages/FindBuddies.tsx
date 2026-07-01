@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { usersApi, type DiscoverUser } from '@/shared/api';
 import { getStoredToken, useAuth } from '@/shared/components/AuthProvider';
 import { FollowCreatorActions } from '@/shared/components/FollowCreatorActions';
+import { PRIMARY_DISCIPLINES, DISCIPLINE_LABELS } from '@/shared/constants/disciplines';
 
 const SECTIONS: Record<string, string> = {
   GENERAL: 'General',
@@ -20,9 +21,11 @@ export default function FindBuddies() {
   const [searchParams, setSearchParams] = useSearchParams();
   const qParam = searchParams.get('q') ?? '';
   const skillParam = searchParams.get('skill') ?? '';
+  const disciplineParam = searchParams.get('discipline') ?? '';
 
   const [qInput, setQInput] = useState(qParam);
   const [skillInput, setSkillInput] = useState(skillParam);
+  const [disciplineInput, setDisciplineInput] = useState(disciplineParam);
   const [people, setPeople] = useState<DiscoverUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -36,6 +39,7 @@ export default function FindBuddies() {
         {
           q: qParam || undefined,
           skill: skillParam || undefined,
+          discipline: disciplineParam || undefined,
           limit: 32,
         },
         t,
@@ -47,12 +51,13 @@ export default function FindBuddies() {
     } finally {
       setLoading(false);
     }
-  }, [qParam, skillParam, token]);
+  }, [qParam, skillParam, disciplineParam, token]);
 
   useEffect(() => {
     setQInput(qParam);
     setSkillInput(skillParam);
-  }, [qParam, skillParam]);
+    setDisciplineInput(disciplineParam);
+  }, [qParam, skillParam, disciplineParam]);
 
   useEffect(() => {
     load();
@@ -63,6 +68,7 @@ export default function FindBuddies() {
     const next = new URLSearchParams();
     if (qInput.trim()) next.set('q', qInput.trim());
     if (skillInput.trim()) next.set('skill', skillInput.trim());
+    if (disciplineInput.trim()) next.set('discipline', disciplineInput.trim());
     setSearchParams(next);
   }
 
@@ -77,7 +83,7 @@ export default function FindBuddies() {
       </div>
       <h1 className="font-mono text-2xl font-semibold text-slate-100">Find buddies</h1>
       <p className="mt-2 max-w-2xl text-sm text-slate-400">
-        Search by name, username, or bio. Filter by a skill tag. Follow creators and peek at their public projects and community posts.
+        Search by name, username, or bio. Filter by discipline or skill tag. Follow creators and peek at their public projects and community posts.
       </p>
 
       <form onSubmit={handleSearch} className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
@@ -92,6 +98,22 @@ export default function FindBuddies() {
             placeholder="Name, @username, or keywords…"
             className="input mt-1 w-full"
           />
+        </div>
+        <div className="w-full sm:w-44">
+          <label htmlFor="buddy-discipline" className="block text-xs font-medium uppercase tracking-wide text-slate-500">
+            Discipline
+          </label>
+          <select
+            id="buddy-discipline"
+            value={disciplineInput}
+            onChange={(e) => setDisciplineInput(e.target.value)}
+            className="input mt-1 w-full"
+          >
+            <option value="">Any</option>
+            {PRIMARY_DISCIPLINES.map((d) => (
+              <option key={d} value={d}>{DISCIPLINE_LABELS[d]}</option>
+            ))}
+          </select>
         </div>
         <div className="w-full sm:w-48">
           <label htmlFor="buddy-skill" className="block text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -137,7 +159,11 @@ export default function FindBuddies() {
                       {u.name}
                     </Link>
                     <p className="text-sm text-slate-400">@{u.username}</p>
-                    <p className="mt-1 text-xs text-slate-500">{u.rankLabel ?? u.rank}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {u.primaryDiscipline && u.primaryDiscipline !== 'DEVELOPER'
+                        ? u.disciplineLabel
+                        : u.rankLabel ?? u.rank}
+                    </p>
                     {u.bio ? <p className="mt-2 line-clamp-2 text-sm text-slate-300">{u.bio}</p> : null}
                     {u.skills && u.skills.length > 0 ? (
                       <div className="mt-2 flex flex-wrap gap-1.5">

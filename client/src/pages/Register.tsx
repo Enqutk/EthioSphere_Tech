@@ -2,13 +2,18 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/shared/components/AuthProvider';
 import { authApi } from '@/shared/api';
+import { DISCIPLINE_LABELS, parseDisciplineSlug } from '@/shared/constants/disciplines';
 
 type AccountKind = 'developer' | 'company';
+type DisciplineSlug = 'developer' | 'ui_ux' | 'graphics' | 'devops' | 'pm';
+
+const DISCIPLINE_SLUGS: DisciplineSlug[] = ['developer', 'ui_ux', 'graphics', 'devops', 'pm'];
 
 export default function Register() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [accountKind, setAccountKind] = useState<AccountKind>('developer');
+  const [discipline, setDiscipline] = useState<DisciplineSlug>('developer');
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -36,7 +41,8 @@ export default function Register() {
         password,
         agreedToTerms: true,
         accountType: accountKind,
-        ...(accountKind === 'developer' && githubUrl.trim() ? { githubUrl: githubUrl.trim() } : {}),
+        ...(accountKind === 'developer' ? { primaryDiscipline: discipline } : {}),
+        ...(accountKind === 'developer' && discipline === 'developer' && githubUrl.trim() ? { githubUrl: githubUrl.trim() } : {}),
         ...(accountKind === 'company'
           ? {
               companyWebsite: companyWebsite.trim(),
@@ -69,7 +75,7 @@ export default function Register() {
         <p className="mt-2 text-slate-400">
           {accountKind === 'company'
             ? 'Register your company to post hiring & intern challenges (verified after review).'
-            : 'Join and get a profile, projects, challenges, and community in one place.'}
+            : 'Developers, designers, DevOps, and PMs — build profiles, join projects, and collaborate.'}
         </p>
 
         <div className="mt-6 flex rounded-lg border border-slate-700 p-1">
@@ -113,12 +119,32 @@ export default function Register() {
           </div>
 
           {accountKind === 'developer' ? (
-            <div>
-              <label htmlFor="githubUrl" className="block text-sm font-medium text-slate-300">
-                GitHub <span className="font-normal text-slate-500">(optional)</span>
-              </label>
-              <input id="githubUrl" type="text" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} className="input mt-1" placeholder="username or https://github.com/yourname" />
-            </div>
+            <>
+              <div>
+                <label htmlFor="discipline" className="block text-sm font-medium text-slate-300">Primary focus</label>
+                <select
+                  id="discipline"
+                  value={discipline}
+                  onChange={(e) => setDiscipline(e.target.value as DisciplineSlug)}
+                  className="input mt-1"
+                >
+                  {DISCIPLINE_SLUGS.map((slug) => (
+                    <option key={slug} value={slug}>
+                      {DISCIPLINE_LABELS[parseDisciplineSlug(slug)]}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-slate-500">You can change this later in profile settings.</p>
+              </div>
+              {discipline === 'developer' && (
+                <div>
+                  <label htmlFor="githubUrl" className="block text-sm font-medium text-slate-300">
+                    GitHub <span className="font-normal text-slate-500">(optional)</span>
+                  </label>
+                  <input id="githubUrl" type="text" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} className="input mt-1" placeholder="username or https://github.com/yourname" />
+                </div>
+              )}
+            </>
           ) : (
             <>
               <div>

@@ -3,19 +3,32 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/shared/components/AuthProvider';
 import { usersApi } from '@/shared/api';
 import { getStoredToken } from '@/shared/components/AuthProvider';
+import {
+  DISCIPLINE_LABELS,
+  DISCIPLINE_SKILL_HINTS,
+  PRIMARY_DISCIPLINES,
+  type PrimaryDiscipline,
+  type DesignLinks,
+} from '@/shared/constants/disciplines';
 
 export default function ProfileEdit() {
   const navigate = useNavigate();
   const { user, ready, updateSessionUser } = useAuth();
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
+  const [primaryDiscipline, setPrimaryDiscipline] = useState<PrimaryDiscipline>('DEVELOPER');
   const [githubUrl, setGithubUrl] = useState('');
   const [portfolioUrl, setPortfolioUrl] = useState('');
+  const [figmaUrl, setFigmaUrl] = useState('');
+  const [behanceUrl, setBehanceUrl] = useState('');
+  const [dribbbleUrl, setDribbbleUrl] = useState('');
   const [skills, setSkills] = useState('');
   const [profileSections, setProfileSections] = useState<{ title: string; content: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const isDesigner = primaryDiscipline === 'UI_UX' || primaryDiscipline === 'GRAPHICS';
 
   useEffect(() => {
     if (!ready) return;
@@ -38,15 +51,22 @@ export default function ProfileEdit() {
         const d = data as {
           name?: string;
           bio?: string;
+          primaryDiscipline?: PrimaryDiscipline;
           githubUrl?: string;
           portfolioUrl?: string;
+          designLinks?: DesignLinks | null;
           skills?: string[];
           profileSections?: { title?: string; content?: string }[];
         };
         setName(d.name ?? '');
         setBio(d.bio ?? '');
+        setPrimaryDiscipline(d.primaryDiscipline ?? 'DEVELOPER');
         setGithubUrl(d.githubUrl ?? '');
         setPortfolioUrl(d.portfolioUrl ?? '');
+        const links = d.designLinks ?? {};
+        setFigmaUrl(links.figma ?? '');
+        setBehanceUrl(links.behance ?? '');
+        setDribbbleUrl(links.dribbble ?? '');
         setSkills(Array.isArray(d.skills) ? d.skills.join(', ') : '');
         setProfileSections(
           Array.isArray(d.profileSections)
@@ -70,11 +90,18 @@ export default function ProfileEdit() {
     setSaving(true);
     setError('');
     try {
+      const designLinks: DesignLinks = {};
+      if (figmaUrl.trim()) designLinks.figma = figmaUrl.trim();
+      if (behanceUrl.trim()) designLinks.behance = behanceUrl.trim();
+      if (dribbbleUrl.trim()) designLinks.dribbble = dribbbleUrl.trim();
+
       const updated = await usersApi.updateMe(token, {
         name: name.trim(),
         bio: bio.trim() || undefined,
+        primaryDiscipline,
         githubUrl: githubUrl.trim() || undefined,
         portfolioUrl: portfolioUrl.trim() ? portfolioUrl.trim() : null,
+        designLinks,
         skills: skills.split(',').map((s) => s.trim()).filter(Boolean),
         profileSections: profileSections
           .map((s) => ({ title: s.title.trim(), content: s.content.trim() }))
@@ -93,6 +120,15 @@ export default function ProfileEdit() {
     return <div className="mx-auto max-w-xl px-6 py-16 text-center text-slate-400">Loading…</div>;
   }
 
+  if (user.accountType === 'COMPANY') {
+    return (
+      <div className="mx-auto max-w-xl px-6 py-12">
+        <Link to={`/profile/${user.username}`} className="text-sm text-slate-400 hover:text-brand-400">← Back to profile</Link>
+        <p className="mt-6 text-slate-400">Company profiles are managed through your company verification settings.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-xl px-6 py-12">
       <Link to={`/profile/${user.username}`} className="text-sm text-slate-400 hover:text-brand-400">← Back to profile</Link>
@@ -104,31 +140,67 @@ export default function ProfileEdit() {
           <input id="name" value={name} onChange={(e) => setName(e.target.value)} className="input mt-1" required />
         </div>
         <div>
+          <label htmlFor="discipline" className="block text-sm font-medium text-slate-300">Primary focus</label>
+          <select
+            id="discipline"
+            value={primaryDiscipline}
+            onChange={(e) => setPrimaryDiscipline(e.target.value as PrimaryDiscipline)}
+            className="input mt-1"
+          >
+            {PRIMARY_DISCIPLINES.map((d) => (
+              <option key={d} value={d}>{DISCIPLINE_LABELS[d]}</option>
+            ))}
+          </select>
+        </div>
+        <div>
           <label htmlFor="bio" className="block text-sm font-medium text-slate-300">Bio</label>
           <textarea id="bio" value={bio} onChange={(e) => setBio(e.target.value)} className="input mt-1 min-h-[80px] resize-y" />
         </div>
+        {(primaryDiscipline === 'DEVELOPER' || primaryDiscipline === 'DEVOPS') && (
+          <div>
+            <label htmlFor="githubUrl" className="block text-sm font-medium text-slate-300">GitHub URL</label>
+            <input id="githubUrl" type="url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} className="input mt-1" placeholder="https://github.com/username" />
+          </div>
+        )}
         <div>
-          <label htmlFor="githubUrl" className="block text-sm font-medium text-slate-300">GitHub URL</label>
-          <input id="githubUrl" type="url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} className="input mt-1" placeholder="https://github.com/username" />
-        </div>
-        <div>
-          <label htmlFor="portfolioUrl" className="block text-sm font-medium text-slate-300">Hosted portfolio URL</label>
+          <label htmlFor="portfolioUrl" className="block text-sm font-medium text-slate-300">
+            {isDesigner ? 'Portfolio URL' : 'Hosted portfolio URL'}
+          </label>
           <input
             id="portfolioUrl"
             type="url"
             value={portfolioUrl}
             onChange={(e) => setPortfolioUrl(e.target.value)}
             className="input mt-1"
-            placeholder="https://you.github.io / https://your-site.vercel.app"
+            placeholder={isDesigner ? 'https://yourportfolio.com' : 'https://you.github.io / https://your-site.vercel.app'}
           />
-          <p className="mt-2 text-xs leading-relaxed text-slate-500">
-            Deploy your own mini-site anywhere (GitHub Pages, Vercel, Netlify, Cloudflare Pages, etc.) and paste the public{' '}
-            <span className="font-mono text-slate-400">https://</span> link. It opens in a new tab from your profile — we don’t host or embed the page.
-          </p>
         </div>
+        {isDesigner && (
+          <div className="space-y-3 rounded-lg border border-slate-800 bg-surface-900/40 p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Design profiles</p>
+            <div>
+              <label htmlFor="figmaUrl" className="block text-sm text-slate-400">Figma community / file link</label>
+              <input id="figmaUrl" type="url" value={figmaUrl} onChange={(e) => setFigmaUrl(e.target.value)} className="input mt-1" placeholder="https://figma.com/…" />
+            </div>
+            <div>
+              <label htmlFor="behanceUrl" className="block text-sm text-slate-400">Behance</label>
+              <input id="behanceUrl" type="url" value={behanceUrl} onChange={(e) => setBehanceUrl(e.target.value)} className="input mt-1" placeholder="https://behance.net/…" />
+            </div>
+            <div>
+              <label htmlFor="dribbbleUrl" className="block text-sm text-slate-400">Dribbble</label>
+              <input id="dribbbleUrl" type="url" value={dribbbleUrl} onChange={(e) => setDribbbleUrl(e.target.value)} className="input mt-1" placeholder="https://dribbble.com/…" />
+            </div>
+          </div>
+        )}
         <div>
           <label htmlFor="skills" className="block text-sm font-medium text-slate-300">Skills (comma-separated)</label>
-          <input id="skills" value={skills} onChange={(e) => setSkills(e.target.value)} className="input mt-1" placeholder="React, Node.js, TypeScript" />
+          <input
+            id="skills"
+            value={skills}
+            onChange={(e) => setSkills(e.target.value)}
+            className="input mt-1"
+            placeholder={DISCIPLINE_SKILL_HINTS[primaryDiscipline]}
+          />
         </div>
         <div>
           <div className="mb-2 flex items-center justify-between">

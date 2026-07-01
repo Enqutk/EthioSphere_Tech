@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { projectsApi } from '@/shared/api';
 import { getStoredToken } from '@/shared/components/AuthProvider';
 import { PulseStrip } from '@/shared/components/PulseStrip';
+import { RolesNeededBadges } from '@/shared/components/RolesNeededPicker';
 
 type Project = {
   id: string;
@@ -12,6 +13,7 @@ type Project = {
   type: string;
   visibility?: string;
   seekingReview?: boolean;
+  rolesNeeded?: string[];
   githubFullName?: string | null;
   githubHtmlUrl?: string | null;
   githubData?: {
@@ -74,12 +76,15 @@ export default function Projects() {
                       {p.seekingReview && (
                         <span className="rounded bg-brand-500/20 px-2 py-0.5 text-xs text-brand-400">Seeking review</span>
                       )}
-                      {p.githubData?.repo?.stargazers_count != null && (
-                        <span className="text-xs text-slate-500">★ {p.githubData.repo.stargazers_count}</span>
-                      )}
-                      {p.githubData?.repo?.language && (
-                        <span className="text-xs text-slate-500">{p.githubData.repo.language}</span>
-                      )}
+                    </div>
+                    {p.rolesNeeded && p.rolesNeeded.length > 0 && (
+                      <div className="mt-2">
+                        <RolesNeededBadges roles={p.rolesNeeded} />
+                      </div>
+                    )}
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                      {p.githubData?.repo?.stargazers_count != null && <span>★ {p.githubData.repo.stargazers_count}</span>}
+                      {p.githubData?.repo?.language && <span>{p.githubData.repo.language}</span>}
                     </div>
                     <div className="mt-3 border-t border-slate-800/60 pt-3">
                       <PulseStrip

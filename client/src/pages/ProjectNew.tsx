@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { projectsApi } from '@/shared/api';
 import { useAuth } from '@/shared/components/AuthProvider';
 import { getStoredToken } from '@/shared/components/AuthProvider';
+import { RolesNeededPicker } from '@/shared/components/RolesNeededPicker';
+import type { ProjectTeamRole } from '@/shared/constants/disciplines';
 
 export default function ProjectNew() {
   const navigate = useNavigate();
@@ -13,6 +15,7 @@ export default function ProjectNew() {
   const [type, setType] = useState<'LEARNING' | 'OPEN_SOURCE' | 'HACKATHON'>('LEARNING');
   const [visibility, setVisibility] = useState<'PUBLIC' | 'FOLLOWERS_ONLY' | 'PRIVATE'>('PUBLIC');
   const [seekingReview, setSeekingReview] = useState(false);
+  const [rolesNeeded, setRolesNeeded] = useState<ProjectTeamRole[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -35,6 +38,7 @@ export default function ProjectNew() {
         type,
         visibility,
         seekingReview,
+        ...(rolesNeeded.length ? { rolesNeeded } : {}),
       });
       navigate(`/projects/${(project as { id: string }).id}`);
     } catch (err: unknown) {
@@ -114,6 +118,13 @@ export default function ProjectNew() {
             <span className="mt-0.5 block text-xs text-slate-500">Shows a badge so others can message you from the project page.</span>
           </span>
         </label>
+        <div>
+          <p className="block text-sm font-medium text-slate-300">Roles needed on the team</p>
+          <p className="mt-1 text-xs text-slate-500">Optional — let designers, DevOps, or PMs know you&apos;re recruiting.</p>
+          <div className="mt-3">
+            <RolesNeededPicker value={rolesNeeded} onChange={setRolesNeeded} idPrefix="new" />
+          </div>
+        </div>
         <button type="submit" className="btn-primary w-full" disabled={loading}>{loading ? 'Creating…' : 'Create project'}</button>
       </form>
     </div>

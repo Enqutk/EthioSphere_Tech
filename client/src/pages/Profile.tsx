@@ -4,6 +4,11 @@ import { companiesApi, followApi, usersApi } from '@/shared/api';
 import type { CompanyProfile } from '@/shared/api';
 import { useAuth } from '@/shared/components/AuthProvider';
 import { ReportProfileButton } from '@/shared/components/ReportProfileButton';
+import {
+  disciplineBadgeLabel,
+  type PrimaryDiscipline,
+  type DesignLinks,
+} from '@/shared/constants/disciplines';
 
 type Profile = {
   id: string;
@@ -12,6 +17,8 @@ type Profile = {
   avatarUrl?: string | null;
   bio?: string | null;
   rank: string;
+  primaryDiscipline?: PrimaryDiscipline;
+  designLinks?: DesignLinks | null;
   isBanned?: boolean;
   banReason?: string | null;
   accountType?: 'DEVELOPER' | 'COMPANY';
@@ -198,7 +205,9 @@ export default function Profile() {
               {profile.followersCount ?? 0} followers · {profile.followingCount ?? 0} following
             </p>
             <span className="mt-2 inline-block rounded-full bg-brand-500/20 px-3 py-0.5 text-sm font-medium text-brand-400">
-              {isCompany ? 'Company' : RANK_LABELS[profile.rank] || profile.rank}
+              {isCompany
+                ? 'Company'
+                : disciplineBadgeLabel(profile.primaryDiscipline, RANK_LABELS[profile.rank] || profile.rank)}
             </span>
             {verificationBadge() && <span className="ml-2 mt-2 inline-block">{verificationBadge()}</span>}
             {isCompany && profile.company?.website && (
@@ -220,6 +229,26 @@ export default function Profile() {
               {profile.githubUrl && (
                 <a href={profile.githubUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-400 hover:underline">
                   GitHub →
+                </a>
+              )}
+              {profile.portfolioUrl && (
+                <a href={profile.portfolioUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-400 hover:underline">
+                  Portfolio →
+                </a>
+              )}
+              {profile.designLinks?.figma && (
+                <a href={profile.designLinks.figma} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-400 hover:underline">
+                  Figma →
+                </a>
+              )}
+              {profile.designLinks?.behance && (
+                <a href={profile.designLinks.behance} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-400 hover:underline">
+                  Behance →
+                </a>
+              )}
+              {profile.designLinks?.dribbble && (
+                <a href={profile.designLinks.dribbble} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-400 hover:underline">
+                  Dribbble →
                 </a>
               )}
             </div>
