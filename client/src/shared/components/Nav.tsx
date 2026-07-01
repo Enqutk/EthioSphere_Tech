@@ -35,7 +35,6 @@ export function Nav() {
         <Link to="/" className="group flex shrink-0 items-center gap-2 font-mono">
           <img src="/favicon.svg" alt="" className="h-7 w-7 rounded-md" width={28} height={28} />
           <span className="flex items-baseline gap-1">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-500/80">pw</span>
             <span className="text-sm font-bold tracking-tight text-slate-100">
               Programmers<span className="text-brand-400">.</span>World
             </span>
