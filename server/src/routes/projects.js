@@ -59,6 +59,7 @@ projectsRouter.post(
     body('type').optional().isIn(['OPEN_SOURCE', 'HACKATHON', 'LEARNING']),
     body('visibility').optional().isIn(['PUBLIC', 'FOLLOWERS_ONLY', 'PRIVATE']),
     body('seekingReview').optional().isBoolean(),
+    body('rolesNeeded').optional().isArray(),
   ],
   async (req, res) => {
     try {
@@ -86,6 +87,7 @@ projectsRouter.patch(
     body('githubRepoUrl').optional({ values: 'falsy' }).isString().trim(),
     body('visibility').optional().isIn(['PUBLIC', 'FOLLOWERS_ONLY', 'PRIVATE']),
     body('seekingReview').optional().isBoolean(),
+    body('rolesNeeded').optional().isArray(),
   ],
   async (req, res) => {
     try {

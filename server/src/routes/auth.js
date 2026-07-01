@@ -6,6 +6,7 @@ import { sendRouteError } from '../lib/dbErrors.js';
 import { signToken } from '../middleware/auth.js';
 import { parseGithubUserLogin, fetchGithubUser, inferRankFromGithub } from '../lib/githubPublic.js';
 import { resolveActiveBan, banStatusPayload } from '../lib/banHelpers.js';
+import { parsePrimaryDiscipline } from '../lib/disciplines.js';
 
 export const authRouter = Router();
 
@@ -21,6 +22,7 @@ authRouter.post(
     body('companyWebsite').optional({ values: 'falsy' }).isURL({ require_protocol: true }),
     body('companyDescription').optional({ values: 'falsy' }).isString().trim().isLength({ max: 2000 }),
     body('agreedToTerms').custom((v) => v === true || v === 'true').withMessage('You must accept the Privacy Policy and Terms of Service.'),
+    body('primaryDiscipline').optional().isString().trim(),
   ],
   async (req, res) => {
     try {
@@ -30,6 +32,8 @@ authRouter.post(
       }
       const { email, password, name, username } = req.body;
       const accountType = req.body.accountType === 'company' ? 'COMPANY' : 'DEVELOPER';
+      const primaryDiscipline =
+        accountType === 'COMPANY' ? 'DEVELOPER' : parsePrimaryDiscipline(req.body.primaryDiscipline);
       const rawGithub = typeof req.body.githubUrl === 'string' ? req.body.githubUrl.trim() : '';
       const companyWebsite = typeof req.body.companyWebsite === 'string' ? req.body.companyWebsite.trim() : '';
       const companyDescription =
@@ -46,7 +50,7 @@ authRouter.post(
       let avatarUrl = null;
       let githubNote = null;
 
-      if (accountType === 'DEVELOPER' && rawGithub) {
+      if (accountType === 'DEVELOPER' && primaryDiscipline === 'DEVELOPER' && rawGithub) {
         const login = parseGithubUserLogin(rawGithub);
         if (!login) {
           return res.status(400).json({
@@ -87,6 +91,7 @@ authRouter.post(
           githubUrl: accountType === 'COMPANY' ? null : githubUrl,
           avatarUrl,
           accountType,
+          primaryDiscipline,
           termsAcceptedAt: new Date(),
           ...(accountType === 'COMPANY'
             ? {
@@ -111,6 +116,7 @@ authRouter.post(
           githubUrl: true,
           isAdmin: true,
           accountType: true,
+          primaryDiscipline: true,
           company: {
             select: {
               id: true,
@@ -152,6 +158,7 @@ authRouter.post(
           githubUrl: true,
           isAdmin: true,
           accountType: true,
+          primaryDiscipline: true,
           isBanned: true,
           bannedAt: true,
           banExpiresAt: true,
@@ -196,6 +203,7 @@ authRouter.post(
           githubUrl: activeUser.githubUrl,
           isAdmin: activeUser.isAdmin,
           accountType: activeUser.accountType,
+          primaryDiscipline: activeUser.primaryDiscipline,
           company: activeUser.company,
         },
         token,

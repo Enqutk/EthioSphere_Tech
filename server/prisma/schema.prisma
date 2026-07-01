@@ -32,6 +32,8 @@ model User {
   banExpiresAt  DateTime?   @map("ban_expires_at")
   termsAcceptedAt DateTime? @map("terms_accepted_at")
   accountType   AccountType @default(DEVELOPER) @map("account_type")
+  primaryDiscipline PrimaryDiscipline @default(DEVELOPER) @map("primary_discipline")
+  designLinks   Json?       @map("design_links")
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
@@ -67,6 +69,14 @@ enum Rank {
 enum AccountType {
   DEVELOPER
   COMPANY
+}
+
+enum PrimaryDiscipline {
+  DEVELOPER
+  UI_UX
+  GRAPHICS
+  DEVOPS
+  PM
 }
 
 enum CompanyVerificationStatus {
@@ -238,6 +248,7 @@ model Project {
   type            ProjectType      @default(LEARNING)
   visibility      ProjectVisibility  @default(PUBLIC) @map("visibility")
   seekingReview   Boolean            @default(false) @map("seeking_review")
+  rolesNeeded     String[]           @default([]) @map("roles_needed")
   ownerId         String             @map("owner_id")
   // GitHub: canonical repo URL, owner/repo, cached JSON (repo, languages, readme, contributors)
   githubHtmlUrl   String?            @map("github_html_url")

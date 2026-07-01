@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { ownedProjectsVisibleWhere } from '../lib/projectAccess.js';
+import { parsePrimaryDiscipline, normalizeDesignLinks } from '../lib/disciplines.js';
 
 export function normalizeProfileSections(input) {
   if (!Array.isArray(input)) return [];
@@ -32,6 +33,8 @@ export async function getCurrentUserProfile(userId) {
       profileSections: true,
       isAdmin: true,
       accountType: true,
+      primaryDiscipline: true,
+      designLinks: true,
       company: {
         select: {
           id: true,
@@ -48,10 +51,14 @@ export async function getCurrentUserProfile(userId) {
   });
 }
 
-export async function discoverUsers({ q, skill, viewerId, take }) {
+export async function discoverUsers({ q, skill, discipline, viewerId, take }) {
   const andParts = [];
   if (viewerId) andParts.push({ NOT: { id: viewerId } });
   if (skill) andParts.push({ skills: { has: skill } });
+  if (discipline) {
+    const d = parsePrimaryDiscipline(discipline);
+    andParts.push({ primaryDiscipline: d, accountType: 'DEVELOPER' });
+  }
   if (q) {
     andParts.push({
       OR: [
@@ -73,6 +80,7 @@ export async function discoverUsers({ q, skill, viewerId, take }) {
       avatarUrl: true,
       bio: true,
       rank: true,
+      primaryDiscipline: true,
       skills: true,
       projectsOwned: {
         where: { visibility: 'PUBLIC' },
@@ -122,6 +130,8 @@ export async function getPublicProfileByUsername(username, viewerId) {
       skills: true,
       profileSections: true,
       accountType: true,
+      primaryDiscipline: true,
+      designLinks: true,
       isBanned: true,
       banReason: true,
       company: {
@@ -215,6 +225,8 @@ export async function updateCurrentUserProfile(userId, payload) {
       skills: true,
       profileSections: true,
       isAdmin: true,
+      primaryDiscipline: true,
+      designLinks: true,
     },
   });
 }

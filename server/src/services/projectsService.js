@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma.js';
 import { parseGithubRepo, verifyPublicGithubRepo, buildPublicRepoBundle } from '../lib/githubPublic.js';
 import { projectListVisibilityWhere, canViewProject } from '../lib/projectAccess.js';
 import { projectPulseScore } from '../lib/pulseScore.js';
+import { normalizeProjectRole, normalizeRolesNeeded } from '../lib/disciplines.js';
 
 const GITHUB_SYNC_MS = 10 * 60 * 1000;
 const githubRefreshInFlight = new Set();
@@ -213,6 +214,7 @@ export async function createProjectFromGithub(userId, body) {
     ? body.visibility
     : 'PUBLIC';
   const seekingReview = Boolean(body.seekingReview);
+  const rolesNeeded = normalizeRolesNeeded(body.rolesNeeded);
 
   const project = await prisma.project.create({
     data: {
@@ -221,6 +223,7 @@ export async function createProjectFromGithub(userId, body) {
       type: body.type || 'LEARNING',
       visibility,
       seekingReview,
+      rolesNeeded,
       ownerId: userId,
       githubHtmlUrl: apiRepo.html_url,
       githubFullName: apiRepo.full_name,
@@ -237,7 +240,7 @@ export async function updateProjectByOwner(projectId, userId, body) {
   if (!project) return { notFound: true };
   if (project.ownerId !== userId) return { forbidden: true };
 
-  const { title, description, status, type, visibility, seekingReview } = body;
+  const { title, description, status, type, visibility, seekingReview, rolesNeeded } = body;
   const data = {};
   if (title !== undefined) data.title = title;
   if (description !== undefined) data.description = description;
@@ -245,6 +248,7 @@ export async function updateProjectByOwner(projectId, userId, body) {
   if (type !== undefined) data.type = type;
   if (visibility !== undefined) data.visibility = visibility;
   if (seekingReview !== undefined) data.seekingReview = Boolean(seekingReview);
+  if (rolesNeeded !== undefined) data.rolesNeeded = normalizeRolesNeeded(rolesNeeded);
 
   const rawGithub = typeof body.githubRepoUrl === 'string' ? body.githubRepoUrl.trim() : '';
   if (rawGithub) {
@@ -273,6 +277,10 @@ export async function updateProjectByOwner(projectId, userId, body) {
 }
 
 export async function joinProject(projectId, userId, role) {
+  const normalizedRole = normalizeProjectRole(role);
+  if (!normalizedRole) {
+    return { badRequest: { error: 'Invalid team role', hint: 'Choose a valid role such as ui_ux, graphics, devops, or pm.' } };
+  }
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project) return { notFound: true };
   const allowed = await canViewProject(prisma, project, userId);
@@ -283,7 +291,7 @@ export async function joinProject(projectId, userId, role) {
   });
   if (existing) return { badRequest: { error: 'Already a member' } };
   const member = await prisma.projectMember.create({
-    data: { projectId, userId, role },
+    data: { projectId, userId, role: normalizedRole },
     include: { user: { select: { id: true, name: true, username: true, avatarUrl: true } } },
   });
   return { created: member };

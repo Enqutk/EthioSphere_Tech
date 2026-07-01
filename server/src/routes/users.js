@@ -9,6 +9,7 @@ import {
   getPublicProfileByUsername,
   updateCurrentUserProfile,
 } from '../services/usersService.js';
+import { parsePrimaryDiscipline, normalizeDesignLinks, DISCIPLINE_LABELS } from '../lib/disciplines.js';
 
 export const usersRouter = Router();
 
@@ -26,10 +27,11 @@ usersRouter.get('/discover', optionalAuth, async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();
     const skill = String(req.query.skill || '').trim();
+    const discipline = String(req.query.discipline || '').trim();
     const viewerId = req.user?.id;
     const take = Math.min(40, Math.max(1, parseInt(String(req.query.limit), 10) || 24));
 
-    const { users, followByUserId } = await discoverUsers({ q, skill, viewerId, take });
+    const { users, followByUserId } = await discoverUsers({ q, skill, discipline, viewerId, take });
     const RANK_LABELS = {
       NEWBIE: 'Newbie',
       JUNIOR_DEV: 'Junior Dev',
@@ -41,6 +43,7 @@ usersRouter.get('/discover', optionalAuth, async (req, res) => {
       users.map((u) => ({
         ...u,
         rankLabel: RANK_LABELS[u.rank] || u.rank,
+        disciplineLabel: DISCIPLINE_LABELS[u.primaryDiscipline] || u.primaryDiscipline,
         followForViewer: viewerId ? followByUserId[u.id] : null,
       })),
     );
@@ -102,13 +105,15 @@ usersRouter.patch(
     body('profileSections').optional().isArray().withMessage('profileSections must be an array'),
     body('profileSections.*.title').optional().isString().isLength({ min: 1, max: 80 }),
     body('profileSections.*.content').optional().isString().isLength({ min: 1, max: 4000 }),
+    body('primaryDiscipline').optional().isString().trim(),
+    body('designLinks').optional(),
   ],
   async (req, res) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-      const { name, bio, githubUrl, portfolioUrl, skills, profileSections } = req.body;
+      const { name, bio, githubUrl, portfolioUrl, skills, profileSections, primaryDiscipline, designLinks } = req.body;
       const data = {};
       if (name !== undefined) data.name = name;
       if (bio !== undefined) data.bio = bio === '' ? null : bio;
@@ -119,6 +124,8 @@ usersRouter.patch(
       }
       if (skills !== undefined) data.skills = skills;
       if (profileSections !== undefined) data.profileSections = normalizeProfileSections(profileSections);
+      if (primaryDiscipline !== undefined) data.primaryDiscipline = parsePrimaryDiscipline(primaryDiscipline);
+      if (designLinks !== undefined) data.designLinks = normalizeDesignLinks(designLinks);
 
       if (Object.keys(data).length === 0) {
         return res.status(400).json({ error: 'No valid fields to update' });
