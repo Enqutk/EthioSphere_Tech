@@ -31,6 +31,18 @@ export async function getCurrentUserProfile(userId) {
       skills: true,
       profileSections: true,
       isAdmin: true,
+      accountType: true,
+      company: {
+        select: {
+          id: true,
+          legalName: true,
+          website: true,
+          description: true,
+          verificationStatus: true,
+          verifiedAt: true,
+          _count: { select: { likes: true, reviews: true } },
+        },
+      },
       createdAt: true,
     },
   });
@@ -109,10 +121,40 @@ export async function getPublicProfileByUsername(username, viewerId) {
       portfolioUrl: true,
       skills: true,
       profileSections: true,
+      accountType: true,
+      isBanned: true,
+      banReason: true,
+      company: {
+        select: {
+          id: true,
+          legalName: true,
+          website: true,
+          description: true,
+          verificationStatus: true,
+          verifiedAt: true,
+          _count: { select: { likes: true, reviews: true } },
+        },
+      },
       badges: { select: { badgeType: true, earnedAt: true } },
     },
   });
   if (!user) return null;
+
+  if (user.isBanned) {
+    return {
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      accountType: user.accountType,
+      isBanned: true,
+      banReason: user.banReason,
+      company: user.company,
+      projectsOwned: [],
+      followersCount: 0,
+      followingCount: 0,
+      followForViewer: null,
+    };
+  }
 
   const projectsOwned = await prisma.project.findMany({
     where: ownedProjectsVisibleWhere(user.id, viewerId),

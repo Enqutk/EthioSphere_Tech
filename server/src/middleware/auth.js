@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma.js';
+import { resolveActiveBan, banStatusPayload } from '../lib/banHelpers.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 
@@ -28,12 +29,38 @@ export async function requireAuth(req, res, next) {
     }
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, email: true, username: true, name: true, rank: true, avatarUrl: true, isAdmin: true },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        name: true,
+        rank: true,
+        avatarUrl: true,
+        isAdmin: true,
+        accountType: true,
+        isBanned: true,
+        bannedAt: true,
+        banExpiresAt: true,
+        banReason: true,
+      },
     });
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
     }
-    req.user = user;
+    const { user: activeUser, banned } = await resolveActiveBan(user);
+    if (banned) {
+      return res.status(403).json(banStatusPayload(activeUser));
+    }
+    req.user = {
+      id: activeUser.id,
+      email: activeUser.email,
+      username: activeUser.username,
+      name: activeUser.name,
+      rank: activeUser.rank,
+      avatarUrl: activeUser.avatarUrl,
+      isAdmin: activeUser.isAdmin,
+      accountType: activeUser.accountType,
+    };
     next();
   } catch (err) {
     console.error('requireAuth', err);
