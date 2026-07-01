@@ -31,12 +31,15 @@ export function Nav() {
   return (
     <header className="sticky top-0 z-50 border-b border-brand-900/40 bg-surface-950/85 backdrop-blur-md">
       <div className="mx-auto flex h-[3.25rem] max-w-6xl items-center justify-between gap-4 px-6">
-        <Link to="/" className="group flex shrink-0 items-baseline gap-1 font-mono">
-          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-500/80">pw</span>
-          <span className="text-sm font-bold tracking-tight text-slate-100">
-            Programmers<span className="text-brand-400">.</span>World
+        <Link to="/" className="group flex shrink-0 items-center gap-2 font-mono">
+          <img src="/favicon.svg" alt="" className="h-7 w-7 rounded-md" width={28} height={28} />
+          <span className="flex items-baseline gap-1">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-500/80">pw</span>
+            <span className="text-sm font-bold tracking-tight text-slate-100">
+              Programmers<span className="text-brand-400">.</span>World
+            </span>
+            <span className="ml-0.5 inline-block h-4 w-px translate-y-0.5 bg-brand-500/50 animate-cursor-blink" aria-hidden />
           </span>
-          <span className="ml-0.5 inline-block h-4 w-px translate-y-0.5 bg-brand-500/50 animate-cursor-blink" aria-hidden />
         </Link>
         <nav className="flex flex-wrap items-center justify-end gap-0.5 sm:gap-1">
           {navLink('/projects', 'Projects')}

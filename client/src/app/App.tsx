@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { AppFrame } from '@/shared/components/AppFrame';
 import { Nav } from '@/shared/components/Nav';
+import { Footer } from '@/shared/components/Footer';
 import Home from '@/pages/Home';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
@@ -19,6 +20,8 @@ import Inbox from '@/pages/Inbox';
 import InboxChat from '@/pages/InboxChat';
 import Admin from '@/pages/Admin';
 import FindBuddies from '@/pages/FindBuddies';
+import Privacy from '@/pages/Privacy';
+import Terms from '@/pages/Terms';
 
 export default function App() {
   return (
@@ -44,8 +47,11 @@ export default function App() {
           <Route path="/challenges/new" element={<ChallengeNew />} />
           <Route path="/challenges/:id" element={<ChallengeDetail />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
         </Routes>
       </main>
+      <Footer />
     </AppFrame>
   );
 }

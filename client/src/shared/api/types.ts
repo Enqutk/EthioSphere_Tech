@@ -6,6 +6,13 @@ export type User = {
   avatarUrl?: string | null;
   bio?: string | null;
   rank: string;
+  accountType?: 'DEVELOPER' | 'COMPANY';
+  company?: {
+    id: string;
+    legalName: string;
+    website: string;
+    verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  } | null;
   /** Set at registration when GitHub is linked */
   githubUrl?: string | null;
   /** Self-hosted mini portfolio (GitHub Pages, Vercel, etc.) */

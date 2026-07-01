@@ -3,20 +3,30 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/shared/components/AuthProvider';
 import { authApi } from '@/shared/api';
 
+type AccountKind = 'developer' | 'company';
+
 export default function Register() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const [accountKind, setAccountKind] = useState<AccountKind>('developer');
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
+  const [companyWebsite, setCompanyWebsite] = useState('');
+  const [companyDescription, setCompanyDescription] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    if (!agreedToTerms) {
+      setError('Please accept the Privacy Policy and Terms of Service to continue.');
+      return;
+    }
     setLoading(true);
     try {
       const { user, token, githubNote } = await authApi.register({
@@ -24,10 +34,24 @@ export default function Register() {
         username: username.toLowerCase(),
         email,
         password,
-        ...(githubUrl.trim() ? { githubUrl: githubUrl.trim() } : {}),
+        agreedToTerms: true,
+        accountType: accountKind,
+        ...(accountKind === 'developer' && githubUrl.trim() ? { githubUrl: githubUrl.trim() } : {}),
+        ...(accountKind === 'company'
+          ? {
+              companyWebsite: companyWebsite.trim(),
+              ...(companyDescription.trim() ? { companyDescription: companyDescription.trim() } : {}),
+            }
+          : {}),
       });
       login(user, token);
-      navigate('/', { state: githubNote ? { banner: githubNote } : undefined });
+      navigate('/', {
+        state: githubNote
+          ? { banner: githubNote }
+          : accountKind === 'company'
+            ? { banner: 'Company registered — pending verification by our team.' }
+            : undefined,
+      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
       const data = (err as { errors?: { msg: string }[] })?.errors;
@@ -42,46 +66,115 @@ export default function Register() {
       <div className="card p-8">
         <p className="label-system">Auth · register</p>
         <h1 className="mt-2 font-mono text-2xl font-semibold text-slate-100">Create account</h1>
-        <p className="mt-2 text-slate-400">Join and get a profile, projects, challenges, and community in one place.</p>
+        <p className="mt-2 text-slate-400">
+          {accountKind === 'company'
+            ? 'Register your company to post hiring & intern challenges (verified after review).'
+            : 'Join and get a profile, projects, challenges, and community in one place.'}
+        </p>
+
+        <div className="mt-6 flex rounded-lg border border-slate-700 p-1">
+          <button
+            type="button"
+            className={`flex-1 rounded-md px-3 py-2 text-sm ${accountKind === 'developer' ? 'bg-brand-600 text-white' : 'text-slate-400'}`}
+            onClick={() => setAccountKind('developer')}
+          >
+            Developer
+          </button>
+          <button
+            type="button"
+            className={`flex-1 rounded-md px-3 py-2 text-sm ${accountKind === 'company' ? 'bg-brand-600 text-white' : 'text-slate-400'}`}
+            onClick={() => setAccountKind('company')}
+          >
+            Company
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-        {error && (
-          <div className="rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div>
-        )}
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-slate-300">Name</label>
-          <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="input mt-1" placeholder="Your name" required />
-        </div>
-        <div>
-          <label htmlFor="username" className="block text-sm font-medium text-slate-300">Username</label>
-          <input id="username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="input mt-1" placeholder="cool_dev" pattern="[a-zA-Z0-9_]+" required />
-          <p className="mt-1 text-xs text-slate-500">Letters, numbers, underscore only.</p>
-        </div>
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-slate-300">Email</label>
-          <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input mt-1" placeholder="you@example.com" required />
-        </div>
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium text-slate-300">Password</label>
-          <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="input mt-1" placeholder="At least 6 characters" minLength={6} required />
-        </div>
-        <div>
-          <label htmlFor="githubUrl" className="block text-sm font-medium text-slate-300">GitHub <span className="font-normal text-slate-500">(optional)</span></label>
-          <input
-            id="githubUrl"
-            type="text"
-            value={githubUrl}
-            onChange={(e) => setGithubUrl(e.target.value)}
-            className="input mt-1"
-            placeholder="username or https://github.com/yourname"
-          />
-          <p className="mt-1 text-xs text-slate-500">
-            We use your public GitHub stats (repos, followers, account age) to suggest a starting skill level. You can change your profile later.
-          </p>
-        </div>
-        <button type="submit" className="btn-primary w-full" disabled={loading}>
-          {loading ? 'Creating account…' : 'Sign up'}
-        </button>
-      </form>
+          {error && (
+            <div className="rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div>
+          )}
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-slate-300">
+              {accountKind === 'company' ? 'Company name' : 'Name'}
+            </label>
+            <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="input mt-1" required />
+          </div>
+          <div>
+            <label htmlFor="username" className="block text-sm font-medium text-slate-300">Username</label>
+            <input id="username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="input mt-1" pattern="[a-zA-Z0-9_]+" required />
+          </div>
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-slate-300">Email</label>
+            <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input mt-1" required />
+          </div>
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-slate-300">Password</label>
+            <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="input mt-1" minLength={6} required />
+          </div>
+
+          {accountKind === 'developer' ? (
+            <div>
+              <label htmlFor="githubUrl" className="block text-sm font-medium text-slate-300">
+                GitHub <span className="font-normal text-slate-500">(optional)</span>
+              </label>
+              <input id="githubUrl" type="text" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} className="input mt-1" placeholder="username or https://github.com/yourname" />
+            </div>
+          ) : (
+            <>
+              <div>
+                <label htmlFor="companyWebsite" className="block text-sm font-medium text-slate-300">Company website</label>
+                <input
+                  id="companyWebsite"
+                  type="url"
+                  value={companyWebsite}
+                  onChange={(e) => setCompanyWebsite(e.target.value)}
+                  className="input mt-1"
+                  placeholder="https://yourcompany.com"
+                  required
+                />
+                <p className="mt-1 text-xs text-slate-500">Used to verify your company is real. Status: pending until admin review.</p>
+              </div>
+              <div>
+                <label htmlFor="companyDescription" className="block text-sm font-medium text-slate-300">
+                  About the company <span className="font-normal text-slate-500">(optional)</span>
+                </label>
+                <textarea
+                  id="companyDescription"
+                  value={companyDescription}
+                  onChange={(e) => setCompanyDescription(e.target.value)}
+                  className="input mt-1 min-h-[88px]"
+                  maxLength={2000}
+                  placeholder="What you do, hiring focus, intern programs…"
+                />
+              </div>
+            </>
+          )}
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-800 bg-surface-900/40 px-4 py-3">
+            <input
+              type="checkbox"
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-slate-600 bg-surface-900 text-brand-600 focus:ring-brand-500"
+              required
+            />
+            <span className="text-sm leading-relaxed text-slate-400">
+              I agree to the{' '}
+              <Link to="/terms" target="_blank" className="text-brand-400 hover:underline">
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link to="/privacy" target="_blank" className="text-brand-400 hover:underline">
+                Privacy Policy
+              </Link>
+              .
+            </span>
+          </label>
+
+          <button type="submit" className="btn-primary w-full" disabled={loading}>
+            {loading ? 'Creating account…' : accountKind === 'company' ? 'Register company' : 'Sign up'}
+          </button>
+        </form>
       </div>
       <p className="mt-6 text-center text-sm text-slate-400">
         Already have an account? <Link to="/login" className="text-brand-400 hover:underline">Log in</Link>

@@ -11,3 +11,6 @@ export { followApi } from './follow';
 export { challengesApi } from './challenges';
 export { adminApi } from './admin';
 export { postsApi } from './posts';
+export { companiesApi } from './companies';
+export { reportsApi } from './reports';
+export type { CompanyProfile } from './companies';

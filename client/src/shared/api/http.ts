@@ -105,6 +105,18 @@ function buildFetchErrorMessage(
   return out;
 }
 
+export class ApiError extends Error {
+  status: number;
+  body: Record<string, unknown>;
+
+  constructor(message: string, status: number, body: Record<string, unknown>) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.body = body;
+  }
+}
+
 export async function api<T>(
   path: string,
   options: ApiOptions = {},
@@ -146,7 +158,8 @@ export async function api<T>(
   const data = (parsed && typeof parsed === 'object' ? parsed : {}) as Record<string, unknown>;
 
   if (!res.ok) {
-    throw new Error(buildFetchErrorMessage(res, raw, parsed, data));
+    const msg = buildFetchErrorMessage(res, raw, parsed, data);
+    throw new ApiError(msg, res.status, data);
   }
 
   if (!raw) return {} as T;
@@ -195,7 +208,8 @@ export async function apiWithResponse<T>(
   const data = (parsed && typeof parsed === 'object' ? parsed : {}) as Record<string, unknown>;
 
   if (!res.ok) {
-    throw new Error(buildFetchErrorMessage(res, raw, parsed, data));
+    const msg = buildFetchErrorMessage(res, raw, parsed, data);
+    throw new ApiError(msg, res.status, data);
   }
 
   if (!raw) return { data: {} as T, response: res };
