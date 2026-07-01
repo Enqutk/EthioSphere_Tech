@@ -127,6 +127,7 @@ export async function verifyPublicGithubRepo(urlOrPath) {
     htmlUrl: d.html_url,
     fullName: d.full_name,
     description: d.description ? String(d.description).slice(0, 500) : null,
+    primaryLanguage: d.language ? String(d.language) : null,
   };
 }
 

@@ -50,6 +50,9 @@ model User {
   postVotes       PostVote[]
   comments        Comment[]
   challengeSubs   ChallengeSubmission[]
+  challengesCreated Challenge[] @relation("ChallengesCreated")
+  challengeSubmissionComments ChallengeSubmissionComment[]
+  challengeSubmissionLikes ChallengeSubmissionLike[]
   badges          UserBadge[]
   dmThreads1      DmThread[]      @relation("DmThreadUser1")
   dmThreads2      DmThread[]      @relation("DmThreadUser2")
@@ -317,13 +320,22 @@ model Challenge {
   difficulty           ChallengeDifficulty @default(MEDIUM)
   rewardPoints         Int                 @default(0) @map("reward_points")
   active               Boolean             @default(true)
+  createdById          String?             @map("created_by_id")
+  submissionMode       ChallengeSubmissionMode @default(GITHUB) @map("submission_mode")
+  requiredLanguages    String[]            @default([]) @map("required_languages")
   // Optional window: before closesAt, only your own submission is visible; after closesAt, all solutions appear in timeline order.
   submissionOpensAt    DateTime?           @map("submission_opens_at")
   submissionClosesAt   DateTime?           @map("submission_closes_at")
   createdAt            DateTime            @default(now()) @map("created_at")
   updatedAt            DateTime            @updatedAt @map("updated_at")
 
+  createdBy   User?                 @relation("ChallengesCreated", fields: [createdById], references: [id], onDelete: SetNull)
   submissions ChallengeSubmission[]
+}
+
+enum ChallengeSubmissionMode {
+  GITHUB
+  CODE
 }
 
 enum ChallengeDifficulty {
@@ -336,16 +348,49 @@ model ChallengeSubmission {
   id               String   @id @default(cuid())
   challengeId      String   @map("challenge_id")
   userId           String   @map("user_id")
-  solutionUrl      String?  @map("solution_url") // e.g. GitHub link or code snippet ref
-  repoFullName     String?  @map("repo_full_name") // owner/repo when verified public
+  solutionUrl      String?  @map("solution_url") // public GitHub repo URL
+  solutionText     String?  @map("solution_text") @db.VarChar(10000)
+  solutionLanguage String?  @map("solution_language") @db.VarChar(80)
+  repoFullName     String?  @map("repo_full_name")
   repoPublic       Boolean? @map("repo_public")
   repoDescription  String?  @map("repo_description") @db.VarChar(512)
   points           Int      @default(0)
+  likeCount        Int      @default(0) @map("like_count")
   submittedAt      DateTime @default(now()) @map("submitted_at")
 
   challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments  ChallengeSubmissionComment[]
+  likes     ChallengeSubmissionLike[]
+
+  @@unique([challengeId, userId])
   @@map("challenge_submissions")
+}
+
+model ChallengeSubmissionComment {
+  id           String   @id @default(cuid())
+  submissionId String   @map("submission_id")
+  userId       String   @map("user_id")
+  body         String   @db.VarChar(2000)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  submission ChallengeSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("challenge_submission_comments")
+}
+
+model ChallengeSubmissionLike {
+  id           String   @id @default(cuid())
+  submissionId String   @map("submission_id")
+  userId       String   @map("user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  submission ChallengeSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, userId])
+  @@map("challenge_submission_likes")
 }
 
 // --- Community (Discussions) ---

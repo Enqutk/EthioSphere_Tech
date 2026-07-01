@@ -7,20 +7,38 @@ const MIN_DISTINCT_CHALLENGES = Math.max(
 );
 
 /**
- * Admins always; otherwise Junior+ rank, or Newbie with enough distinct challenge submissions.
- * @param {{ id: string, rank: string, isAdmin?: boolean }} user
+ * Admins; verified companies; otherwise Junior+ rank, or Newbie with enough completions.
+ * @param {{ id: string, rank?: string, isAdmin?: boolean, accountType?: string }} user
  */
 export async function canUserCreateChallenge(user) {
   if (!user?.id) return false;
   if (user.isAdmin) return true;
-  if (user.rank && user.rank !== 'NEWBIE') return true;
+
+  const full = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: {
+      id: true,
+      rank: true,
+      isAdmin: true,
+      accountType: true,
+      company: { select: { verificationStatus: true } },
+    },
+  });
+  if (!full) return false;
+  if (full.isAdmin) return true;
+
+  if (full.accountType === 'COMPANY') {
+    return full.company?.verificationStatus === 'VERIFIED';
+  }
+
+  if (full.rank && full.rank !== 'NEWBIE') return true;
   const grouped = await prisma.challengeSubmission.groupBy({
     by: ['challengeId'],
-    where: { userId: user.id },
+    where: { userId: full.id },
   });
   return grouped.length >= MIN_DISTINCT_CHALLENGES;
 }
 
 export function challengeCreateRequirementText() {
-  return `Admins, anyone ranked Junior Dev or higher, or Newbies who completed at least ${MIN_DISTINCT_CHALLENGES} different challenges.`;
+  return `Verified companies, admins, anyone ranked Junior Dev or higher, or Newbies who completed at least ${MIN_DISTINCT_CHALLENGES} different challenges.`;
 }
