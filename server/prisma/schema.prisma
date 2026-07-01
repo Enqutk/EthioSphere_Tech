@@ -25,9 +25,22 @@ model User {
   portfolioUrl  String?   @map("portfolio_url") // self-hosted mini portfolio (Pages, Vercel, Netlify, …)
   skills        String[]  @default([]) // e.g. ["React", "Node.js"]
   profileSections Json?   @map("profile_sections") // [{ title: "About", content: "..." }, ...]
-  isAdmin       Boolean   @default(false) @map("is_admin")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  isAdmin       Boolean     @default(false) @map("is_admin")
+  isBanned      Boolean     @default(false) @map("is_banned")
+  bannedAt      DateTime?   @map("banned_at")
+  banReason     String?     @map("ban_reason") @db.VarChar(500)
+  banExpiresAt  DateTime?   @map("ban_expires_at")
+  termsAcceptedAt DateTime? @map("terms_accepted_at")
+  accountType   AccountType @default(DEVELOPER) @map("account_type")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  company         Company?
+  companyReviews  CompanyReview[] @relation("CompanyReviewAuthor")
+  companyLikes    CompanyLike[]
+  reportsFiled    ProfileReport[] @relation("ReportsFiled")
+  reportsReceived ProfileReport[] @relation("ReportsAgainstUser")
+  banAppeals      BanAppeal[]
 
   projectsOwned   Project[]       @relation("ProjectOwner")
   projectMembers  ProjectMember[]
@@ -49,6 +62,118 @@ enum Rank {
   JUNIOR_DEV
   PRO_DEV
   ELITE_ARCHITECT
+}
+
+enum AccountType {
+  DEVELOPER
+  COMPANY
+}
+
+enum CompanyVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum ReportReason {
+  SPAM
+  FAKE
+  HARASSMENT
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  DISMISSED
+  ACTIONED
+}
+
+enum BanAppealStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model BanAppeal {
+  id          String          @id @default(cuid())
+  userId      String          @map("user_id")
+  message     String          @db.VarChar(2000)
+  explanation String?         @db.VarChar(2000)
+  status      BanAppealStatus @default(PENDING)
+  adminNote   String?         @map("admin_note") @db.VarChar(500)
+  createdAt   DateTime        @default(now()) @map("created_at")
+  reviewedAt  DateTime?       @map("reviewed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ban_appeals")
+}
+
+model Company {
+  id                 String                    @id @default(cuid())
+  userId             String                    @unique @map("user_id")
+  legalName          String                    @map("legal_name")
+  website            String
+  description        String?                   @db.VarChar(2000)
+  verificationStatus CompanyVerificationStatus @default(PENDING) @map("verification_status")
+  verificationNote   String?                   @map("verification_note") @db.VarChar(500)
+  verifiedAt         DateTime?                 @map("verified_at")
+  createdAt          DateTime                  @default(now()) @map("created_at")
+  updatedAt          DateTime                  @updatedAt @map("updated_at")
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviews  CompanyReview[]
+  likes    CompanyLike[]
+  reports  ProfileReport[] @relation("ReportsAgainstCompany")
+
+  @@map("companies")
+}
+
+model CompanyReview {
+  id        String   @id @default(cuid())
+  companyId String   @map("company_id")
+  authorId  String   @map("author_id")
+  rating    Int
+  body      String   @db.VarChar(2000)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  author  User    @relation("CompanyReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, authorId])
+  @@map("company_reviews")
+}
+
+model CompanyLike {
+  id        String   @id @default(cuid())
+  companyId String   @map("company_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@map("company_likes")
+}
+
+model ProfileReport {
+  id           String       @id @default(cuid())
+  reporterId   String       @map("reporter_id")
+  targetUserId String?      @map("target_user_id")
+  companyId    String?      @map("company_id")
+  reason       ReportReason
+  details      String?      @db.VarChar(1000)
+  status       ReportStatus @default(OPEN)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  reporter   User     @relation("ReportsFiled", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetUser User?    @relation("ReportsAgainstUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+  company    Company? @relation("ReportsAgainstCompany", fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("profile_reports")
 }
 
 model Follow {
