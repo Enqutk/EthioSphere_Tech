@@ -27,6 +27,10 @@ export function createApp() {
   });
   app.use('/api/', limiter);
 
+  app.get('/', (req, res) => {
+    res.json({ ok: true, message: 'Programmers World API', health: '/api/health' });
+  });
+
   app.get('/api/health', (req, res) => {
     res.json({ ok: true, message: 'Programmers World API' });
   });
