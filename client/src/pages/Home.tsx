@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/shared/components/AuthProvider';
+import { postsApi, projectsApi } from '@/shared/api';
+import { useAuth, getStoredToken } from '@/shared/components/AuthProvider';
+import { RolesNeededBadges } from '@/shared/components/RolesNeededPicker';
 
 type Module = {
   code: string;
@@ -9,12 +12,80 @@ type Module = {
   accent: 'green' | 'red';
 };
 
+type HomePost = {
+  id: string;
+  title: string;
+  body: string;
+  section: string;
+  solved: boolean;
+  author: { username: string };
+  commentCount?: number;
+};
+
+type HomeProject = {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  githubFullName?: string | null;
+  rolesNeeded?: string[];
+  owner: { name: string; username: string };
+};
+
+const SECTIONS: Record<string, string> = {
+  GENERAL: 'General',
+  DEBUG_HELP: 'Debug help',
+  PROJECT_FEEDBACK: 'Project feedback',
+  ANNOUNCEMENTS: 'Announcements',
+  REACT: 'React',
+  NODE: 'Node',
+  PYTHON: 'Python',
+  OTHER: 'Other',
+};
+
+const PROJECT_STATUS: Record<string, string> = {
+  PLANNING: 'Planning',
+  IN_PROGRESS: 'In progress',
+  COMPLETED: 'Completed',
+  ARCHIVED: 'Archived',
+};
+
+const PREVIEW_COUNT = 4;
+
 export default function Home() {
   const { user, ready } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const banner = (location.state as { banner?: string } | null)?.banner;
   const profileHref = user ? `/profile/${user.username.toLowerCase()}` : '/register';
+
+  const [recentPosts, setRecentPosts] = useState<HomePost[]>([]);
+  const [recentProjects, setRecentProjects] = useState<HomeProject[]>([]);
+  const [feedLoading, setFeedLoading] = useState(true);
+
+  useEffect(() => {
+    const token = getStoredToken();
+    let cancelled = false;
+    setFeedLoading(true);
+    Promise.all([postsApi.list(undefined, token), projectsApi.list(undefined, token)])
+      .then(([posts, projects]) => {
+        if (cancelled) return;
+        setRecentPosts((posts as HomePost[]).slice(0, PREVIEW_COUNT));
+        setRecentProjects((projects as HomeProject[]).slice(0, PREVIEW_COUNT));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRecentPosts([]);
+          setRecentProjects([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setFeedLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const modules: Module[] = [
     {
@@ -69,7 +140,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Hero — what this system is in one glance */}
       <section className="relative mx-auto max-w-6xl px-6 pb-16 pt-16 md:pb-24 md:pt-20">
         <div className="mx-auto max-w-3xl text-center">
           <p className="label-system text-brand-400/80">Developer platform</p>
@@ -119,7 +189,122 @@ export default function Home() {
         </div>
       </section>
 
-      {/* System map — scannable modules */}
+      <section className="relative border-t border-brand-900/40 bg-surface-950/60 py-14 md:py-16">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="label-system">Live feed</p>
+              <h2 className="mt-2 font-mono text-xl font-semibold text-slate-100 md:text-2xl">From the community</h2>
+              <p className="mt-1 max-w-xl text-sm text-slate-500">
+                A snapshot of what people are building and discussing right now.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3 text-sm">
+              <Link to="/community" className="text-brand-400 hover:underline">
+                All posts →
+              </Link>
+              <Link to="/projects" className="text-brand-400 hover:underline">
+                All projects →
+              </Link>
+            </div>
+          </div>
+
+          {feedLoading ? (
+            <p className="text-center text-sm text-slate-500">Loading latest activity…</p>
+          ) : (
+            <div className="grid gap-8 lg:grid-cols-2">
+              <div>
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="font-mono text-sm font-medium uppercase tracking-wide text-slate-400">Projects</h3>
+                  <Link to="/projects/new" className="text-xs text-brand-400 hover:underline">
+                    Start one →
+                  </Link>
+                </div>
+                {recentProjects.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-500">
+                    No public projects yet.{' '}
+                    <Link to="/projects/new" className="text-brand-400 hover:underline">
+                      Create the first
+                    </Link>
+                  </div>
+                ) : (
+                  <ul className="space-y-3">
+                    {recentProjects.map((p) => (
+                      <li key={p.id}>
+                        <Link
+                          to={`/projects/${p.id}`}
+                          className="card block p-4 transition hover:border-brand-500/40"
+                        >
+                          <h4 className="font-mono text-sm font-semibold text-slate-100">{p.title}</h4>
+                          {p.githubFullName && (
+                            <p className="mt-0.5 font-mono text-[11px] text-brand-400/80">{p.githubFullName}</p>
+                          )}
+                          <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-500">{p.description}</p>
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                            <span className="rounded bg-surface-800 px-1.5 py-0.5">
+                              {PROJECT_STATUS[p.status] ?? p.status}
+                            </span>
+                            <span>
+                              by @{p.owner.username}
+                            </span>
+                          </div>
+                          {p.rolesNeeded && p.rolesNeeded.length > 0 && (
+                            <div className="mt-2">
+                              <RolesNeededBadges roles={p.rolesNeeded} />
+                            </div>
+                          )}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div>
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="font-mono text-sm font-medium uppercase tracking-wide text-slate-400">Community</h3>
+                  <Link to="/community/new" className="text-xs text-brand-400 hover:underline">
+                    New post →
+                  </Link>
+                </div>
+                {recentPosts.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-500">
+                    No discussions yet.{' '}
+                    <Link to="/community/new" className="text-brand-400 hover:underline">
+                      Start a thread
+                    </Link>
+                  </div>
+                ) : (
+                  <ul className="space-y-3">
+                    {recentPosts.map((p) => (
+                      <li key={p.id}>
+                        <Link
+                          to={`/community/${p.id}`}
+                          className="card block p-4 transition hover:border-brand-500/40"
+                        >
+                          <h4 className="font-mono text-sm font-semibold text-slate-100">{p.title}</h4>
+                          <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-500">{p.body}</p>
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                            <span className="rounded bg-brand-500/15 px-1.5 py-0.5 text-brand-400">
+                              {SECTIONS[p.section] ?? p.section}
+                            </span>
+                            <span>@{p.author.username}</span>
+                            {p.commentCount != null && p.commentCount > 0 && (
+                              <span>{p.commentCount} comment{p.commentCount === 1 ? '' : 's'}</span>
+                            )}
+                            {p.solved && <span className="text-emerald-400">Solved</span>}
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
       <section className="relative border-t border-brand-900/40 bg-surface-950/40 py-16 md:py-20">
         <div className="mx-auto max-w-6xl px-6">
           <div className="mb-10 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
@@ -165,12 +350,6 @@ export default function Home() {
           </ul>
         </div>
       </section>
-
-      <footer className="border-t border-brand-900/30 py-10 text-center">
-        <p className="font-mono text-xs text-slate-600">
-          <span className="text-brand-600/80">$</span> Programmers World — built for developers who learn in public.
-        </p>
-      </footer>
     </div>
   );
 }

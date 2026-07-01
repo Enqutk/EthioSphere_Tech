@@ -8,6 +8,7 @@ export function Nav() {
   const { user, logout, ready } = useAuth();
 
   function handleLogout() {
+    if (!window.confirm('Sign out of your account? You can log back in anytime.')) return;
     logout();
     navigate('/login', { replace: true, state: { signedOut: true } });
   }
