@@ -1,16 +1,20 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import pg from 'pg';
+import { PrismaNeon } from '@prisma/adapter-neon';
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import ws from 'ws';
 
 const globalForPrisma = globalThis;
 
 function createPrismaClient() {
-  const connectionString = process.env.DATABASE_URL;
+  const connectionString = process.env.DATABASE_URL?.trim();
   if (!connectionString) {
-    return new PrismaClient();
+    console.warn('DATABASE_URL is not set — database routes will fail until it is configured.');
+    return null;
   }
-  const pool = new pg.Pool({ connectionString });
-  const adapter = new PrismaPg(pool);
+
+  neonConfig.webSocketConstructor = ws;
+  const pool = new Pool({ connectionString });
+  const adapter = new PrismaNeon(pool);
   return new PrismaClient({ adapter });
 }
 
