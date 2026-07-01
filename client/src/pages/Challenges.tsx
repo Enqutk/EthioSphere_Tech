@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { challengesApi } from '@/shared/api';
+import { challengesApi, type ChallengeCreatedBy } from '@/shared/api/challenges';
 import { useAuth, getStoredToken } from '@/shared/components/AuthProvider';
 
 type Challenge = {
@@ -10,6 +10,9 @@ type Challenge = {
   difficulty: string;
   rewardPoints: number;
   active: boolean;
+  submissionMode?: 'GITHUB' | 'CODE';
+  requiredLanguages?: string[];
+  createdBy?: ChallengeCreatedBy | null;
 };
 
 const DIFF: Record<string, string> = { EASY: 'Easy', MEDIUM: 'Medium', HARD: 'Hard' };
@@ -69,6 +72,12 @@ export default function Challenges() {
                     <div className="mt-3 flex flex-wrap gap-2">
                       <span className={`rounded px-2 py-0.5 text-xs ${c.difficulty === 'EASY' ? 'bg-green-500/20 text-green-400' : c.difficulty === 'MEDIUM' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'}`}>{DIFF[c.difficulty] ?? c.difficulty}</span>
                       <span className="rounded bg-brand-500/20 px-2 py-0.5 text-xs text-brand-400">{c.rewardPoints} pts</span>
+                      {c.submissionMode === 'CODE' && (
+                        <span className="rounded bg-surface-800 px-2 py-0.5 text-xs text-slate-400">Inline code</span>
+                      )}
+                      {c.createdBy?.accountType === 'COMPANY' && c.createdBy.company?.legalName && (
+                        <span className="rounded bg-violet-500/15 px-2 py-0.5 text-xs text-violet-300">{c.createdBy.company.legalName}</span>
+                      )}
                       {!c.active && <span className="rounded bg-slate-700 px-2 py-0.5 text-xs text-slate-400">Inactive</span>}
                     </div>
                   </div>
