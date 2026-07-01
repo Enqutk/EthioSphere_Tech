@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "node --watch src/index.js",
@@ -27,7 +27,9 @@
     "express-rate-limit": "^7.1.5",
     "express-validator": "^7.0.1",
     "jsonwebtoken": "^9.0.2",
-    "prisma": "^5.7.1",
-    "@prisma/client": "^5.7.1"
+    "pg": "^8.13.1",
+    "@prisma/adapter-pg": "^5.22.0",
+    "prisma": "^5.22.0",
+    "@prisma/client": "^5.22.0"
   }
 }
