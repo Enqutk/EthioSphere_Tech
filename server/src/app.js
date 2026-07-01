@@ -17,6 +17,10 @@ import { adminRouter } from './routes/admin.js';
 export function createApp() {
   const app = express();
 
+  if (process.env.VERCEL) {
+    app.set('trust proxy', 1);
+  }
+
   app.use(cors({ origin: getCorsOrigin(), credentials: true }));
   app.use(express.json());
 
@@ -24,6 +28,7 @@ export function createApp() {
     windowMs: 15 * 60 * 1000,
     max: 100,
     message: { error: 'Too many requests, please try again later.' },
+    validate: process.env.VERCEL ? { xForwardedForHeader: false } : undefined,
   });
   app.use('/api/', limiter);
 

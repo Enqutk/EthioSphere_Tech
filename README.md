@@ -213,7 +213,7 @@ Use **two Vercel projects** from the same repo:
    - In Vercel: New Project -> Import this repo
    - **Root Directory:** `server` (Project Settings -> General -> Root Directory -> Edit -> set to `server`)
    - Build command: `npm run build` (runs `prisma generate`) or `npm install && npx prisma generate`
-   - `server/vercel.json` sets function duration; Vercel runs Express from `server/src/index.js`
+   - Vercel auto-detects Express from `server/app.js` (zero-config)
    - Add env vars in Vercel:
      - `DATABASE_URL`
      - `JWT_SECRET`
