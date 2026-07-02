@@ -17,9 +17,10 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, user, ready } = useAuth();
-  const locState = location.state as { from?: string; signedOut?: boolean } | null;
+  const locState = location.state as { from?: string; signedOut?: boolean; passwordReset?: boolean } | null;
   const from = locState?.from || '/';
   const signedOut = Boolean(locState?.signedOut);
+  const passwordReset = Boolean(locState?.passwordReset);
   const redirectTo = from === '/login' ? '/' : from;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -101,6 +102,11 @@ export default function Login() {
         {signedOut && (
           <p className="mt-4 rounded-lg border border-brand-500/25 bg-brand-500/10 px-4 py-3 text-sm text-brand-200">
             You&apos;re signed out. Jump back in anytime.
+          </p>
+        )}
+        {passwordReset && (
+          <p className="mt-4 rounded-lg border border-brand-500/25 bg-brand-500/10 px-4 py-3 text-sm text-brand-200">
+            Password updated. Sign in with your new password.
           </p>
         )}
 
@@ -232,7 +238,12 @@ export default function Login() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-300">Password</label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-300">Password</label>
+              <Link to="/forgot-password" className="text-xs font-medium text-brand-400 hover:underline">
+                Forgot password?
+              </Link>
+            </div>
             <input
               id="password"
               name="password"

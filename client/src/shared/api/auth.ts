@@ -42,6 +42,18 @@ export const authApi = {
     }
   },
 
+  forgotPassword: (body: { email: string }) =>
+    api<{ ok: boolean; message: string }>('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  resetPassword: (body: { token: string; password: string }) =>
+    api<{ ok: boolean; message: string }>('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
   submitBanAppeal: (body: { email: string; password: string; message: string; explanation?: string }) =>
     api<{ ok: boolean; message: string }>('/api/auth/ban-appeal', { method: 'POST', body: JSON.stringify(body) }),
 
