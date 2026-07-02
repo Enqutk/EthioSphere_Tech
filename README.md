@@ -78,6 +78,8 @@ For the **server**, create `server/.env` with at least:
 DATABASE_URL="postgresql://user:password@localhost:5432/programmers_world"
 JWT_SECRET=your-secret-key
 SERVER_PORT=4000
+# Optional locally; required in production (see server/.env.example)
+# GITHUB_TOKEN=ghp_...
 ```
 
 The **client** (Vite) proxies `/api` to the backend by default (`http://localhost:4000`). To use a different API URL, set `VITE_API_BASE_URL` in `client/.env` (legacy `VITE_API_URL` also works), for example:
@@ -218,6 +220,7 @@ Use **two Vercel projects** from the same repo:
      - `DATABASE_URL`
      - `JWT_SECRET`
      - `CLIENT_ORIGIN` (set to your frontend Vercel URL)
+     - `GITHUB_TOKEN` (classic GitHub PAT, no scopes — public API data only; raises rate limit to 5,000/hr)
      - optional: `CHALLENGE_CREATE_MIN_COMPLETED`
 
 2. **Frontend project**
