@@ -275,6 +275,8 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md). Commit messages use [Conventional Comm
 
 **Do not deploy from the repo root.** The root `package.json` is for local `npm run dev` only. Vercel must use **two separate projects**, each with its own **Root Directory**.
 
+> **Common production bug:** If the frontend calls `/api/...` on the same domain as the SPA (e.g. `ethiosphere.vercel.app/api/health` returns HTML), the API is not wired. The frontend shows an **API offline** banner. Fix steps below.
+
 Use **two Vercel projects** from the same repo:
 
 1. **API project**
@@ -299,8 +301,13 @@ Use **two Vercel projects** from the same repo:
 
 After deploy:
 - Frontend opens on your client project URL
-- Frontend API calls go to your server project URL
+- Frontend API calls go to your server project URL (`VITE_API_BASE_URL` — **required in production**)
 - Keep `CLIENT_ORIGIN` in API env synced with the frontend URL to avoid CORS issues
+
+**Verify production:**
+1. Open `https://YOUR-API.vercel.app/api/health` — must return JSON `{"ok":true,...}`, not HTML.
+2. Open your frontend — the red **API offline** banner should not appear.
+3. Projects/Community lists should load (or show intentional empty states, not silent failures).
 
 ### Vercel: `Missing script: "build"` or root `npm run build` fails
 

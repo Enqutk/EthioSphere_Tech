@@ -42,11 +42,11 @@ Profile reports support after-the-fact moderation; there is no way for a user to
 
 ---
 
-## Password reset (UX gap, not a vulnerability)
+## Password reset
 
-There is no `/forgot-password` or `/reset-password` flow. Email/password users who forget their password cannot self-recover (Google-linked users can still use Google sign-in).
+Email/password users can use **Forgot password** (`/forgot-password`) and **Reset password** (`/reset-password`). Tokens are hashed in the database, expire, and are single-use. Rate limits apply on auth routes.
 
-Absence of reset removes reset-token attack surface; add reset flow before onboarding non-technical users (time-limited signed tokens, single use, rate limits).
+Without `RESEND_API_KEY`, reset links are logged to the server console in development only — configure email before onboarding non-technical users in production.
 
 ---
 
@@ -65,7 +65,8 @@ Absence of reset removes reset-token attack surface; add reset flow before onboa
 ## Priority order (recommended)
 
 1. **DM block / mute** — trust & safety before scale
-2. **Password reset** — UX for email/password users
+2. **Production API wiring** — separate Vercel project for `server/`, `VITE_API_BASE_URL` on frontend build
 3. **Shorter session / refresh tokens** — optional hardening (sessions are 7 days today)
+4. **Email delivery** — `RESEND_API_KEY` for password reset in production
 
 See also [CONTRIBUTING.md](./CONTRIBUTING.md) and the README roadmap.
