@@ -11,6 +11,11 @@ import { resolveActiveBan, banStatusPayload } from '../lib/banHelpers.js';
 import { parsePrimaryDiscipline } from '../lib/disciplines.js';
 import { parseGender, parseDateOfBirth } from '../lib/demographics.js';
 import { getClientOrigin, getJwtSecret } from '../config/index.js';
+import { createPasswordResetToken, consumePasswordResetToken } from '../lib/passwordReset.js';
+import { sendPasswordResetEmail } from '../lib/email.js';
+
+const FORGOT_PASSWORD_MESSAGE =
+  'If an account exists with that email, you will receive password reset instructions shortly.';
 import {
   isGoogleOAuthConfigured,
   buildGoogleAuthUrl,
@@ -172,6 +177,70 @@ authRouter.post('/logout', (req, res) => {
   clearSessionCookie(res);
   res.json({ ok: true });
 });
+
+authRouter.post('/forgot-password', [body('email').isEmail().normalizeEmail()], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email } = req.body;
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, isBanned: true, banExpiresAt: true, bannedAt: true },
+    });
+
+    if (user) {
+      const { banned } = await resolveActiveBan(user);
+      if (!banned) {
+        const rawToken = await createPasswordResetToken(user.id);
+        const resetUrl = `${getClientOrigin()}/reset-password?token=${encodeURIComponent(rawToken)}`;
+        try {
+          await sendPasswordResetEmail({ to: user.email, resetUrl });
+        } catch (mailErr) {
+          console.error('POST /api/auth/forgot-password email', mailErr);
+        }
+      }
+    }
+
+    res.json({ ok: true, message: FORGOT_PASSWORD_MESSAGE });
+  } catch (err) {
+    sendRouteError(res, err, 'POST /api/auth/forgot-password', 'Could not process request');
+  }
+});
+
+authRouter.post(
+  '/reset-password',
+  [
+    body('token').trim().notEmpty().withMessage('Reset token is required'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { token, password } = req.body;
+      const userId = await consumePasswordResetToken(token);
+      if (!userId) {
+        return res.status(400).json({ error: 'Invalid or expired reset link. Request a new one.' });
+      }
+
+      const passwordHash = await bcrypt.hash(password, 10);
+      await prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash },
+      });
+
+      res.json({ ok: true, message: 'Password updated. You can sign in with your new password.' });
+    } catch (err) {
+      sendRouteError(res, err, 'POST /api/auth/reset-password', 'Could not reset password');
+    }
+  },
+);
 
 authRouter.post(
   '/register',

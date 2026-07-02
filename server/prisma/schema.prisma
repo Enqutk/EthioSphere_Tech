@@ -65,6 +65,7 @@ model User {
   followsOutgoing Follow[]        @relation("FollowFollower")
   followsIncoming Follow[]        @relation("FollowFollowee")
   projectLikes    ProjectLike[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 enum Rank {
@@ -132,7 +133,24 @@ model BanAppeal {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([status])
   @@map("ban_appeals")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  tokenHash String   @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
 }
 
 model Company {
@@ -212,6 +230,8 @@ model Follow {
   follower    User         @relation("FollowFollower", fields: [followerId], references: [id], onDelete: Cascade)
   followee    User         @relation("FollowFollowee", fields: [followingId], references: [id], onDelete: Cascade)
   @@unique([followerId, followingId])
+  @@index([followerId, status])
+  @@index([followingId, status])
   @@map("follows")
 }
 
@@ -231,6 +251,7 @@ model DmThread {
   user2     User     @relation("DmThreadUser2", fields: [user2Id], references: [id], onDelete: Cascade)
   messages  DmMessage[]
   @@unique([user1Id, user2Id])
+  @@index([updatedAt(sort: Desc)])
   @@map("dm_threads")
 }
 
@@ -243,6 +264,7 @@ model DmMessage {
   createdAt DateTime  @default(now()) @map("created_at")
   thread    DmThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
   sender    User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  @@index([threadId, createdAt(sort: Desc)])
   @@map("dm_messages")
 }
 
@@ -281,6 +303,11 @@ model Project {
   members      ProjectMember[]
   posts        Post[]
   projectLikes ProjectLike[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([visibility])
+  @@index([createdAt(sort: Desc)])
 }
 
 model ProjectLike {
@@ -323,6 +350,7 @@ model ProjectMember {
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([projectId, userId])
+  @@index([userId])
   @@map("project_members")
 }
 
@@ -345,6 +373,9 @@ model Challenge {
 
   createdBy   User?                 @relation("ChallengesCreated", fields: [createdById], references: [id], onDelete: SetNull)
   submissions ChallengeSubmission[]
+
+  @@index([active])
+  @@index([createdAt(sort: Desc)])
 }
 
 enum ChallengeSubmissionMode {
@@ -378,6 +409,7 @@ model ChallengeSubmission {
   likes     ChallengeSubmissionLike[]
 
   @@unique([challengeId, userId])
+  @@index([challengeId])
   @@map("challenge_submissions")
 }
 
@@ -428,6 +460,10 @@ model Post {
   project  Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
   votes    PostVote[]
   comments Comment[]
+
+  @@index([section, createdAt(sort: Desc)])
+  @@index([authorId])
+  @@index([createdAt(sort: Desc)])
 }
 
 enum PostSection {

@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { getCorsOrigin, validateProductionConfig } from './config/index.js';
 import { authRouter } from './routes/auth.js';
@@ -27,16 +28,33 @@ export function createApp() {
   }
 
   app.use(cors({ origin: getCorsOrigin(), credentials: true }));
+  app.use(helmet());
   app.use(cookieParser());
   app.use(express.json());
 
-  const limiter = rateLimit({
+  const rateLimitOpts = process.env.VERCEL ? { validate: { xForwardedForHeader: false } } : {};
+
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many auth attempts, please try again later.' },
+    ...rateLimitOpts,
+  });
+
+  const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
     message: { error: 'Too many requests, please try again later.' },
-    ...(process.env.VERCEL ? { validate: { xForwardedForHeader: false } } : {}),
+    skip: (req) => req.originalUrl.startsWith('/api/auth'),
+    ...rateLimitOpts,
   });
-  app.use('/api/', limiter);
+
+  app.use('/api/auth', authLimiter);
+  app.use('/api', apiLimiter);
 
   app.get('/', (req, res) => {
     res.json({ ok: true, message: 'Programmers World API', health: '/api/health' });

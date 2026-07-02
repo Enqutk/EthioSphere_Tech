@@ -13,7 +13,7 @@ export const config = {
 };
 
 export function isProductionEnv() {
-  return config.nodeEnv === 'production';
+  return (process.env.NODE_ENV || config.nodeEnv || 'development') === 'production';
 }
 
 function parseClientOrigins() {
