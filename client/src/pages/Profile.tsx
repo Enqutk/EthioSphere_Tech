@@ -5,6 +5,7 @@ import type { CompanyProfile } from '@/shared/api';
 import { useAuth } from '@/shared/components/AuthProvider';
 import { usePageMeta } from '@/shared/hooks/usePageMeta';
 import { ReportProfileButton } from '@/shared/components/ReportProfileButton';
+import { DmSafetyActions } from '@/shared/components/DmSafetyActions';
 import {
   disciplineBadgeLabel,
   type PrimaryDiscipline,
@@ -270,9 +271,10 @@ export default function Profile() {
               </>
             )}
             {!isOwn && me && (
-              <div className="flex flex-wrap gap-2">
-                {!isCompany && <Link to={`/inbox/${profile.id}`} className="btn-secondary text-sm">Message</Link>}
-                <ReportProfileButton targetUsername={profile.username} targetType={isCompany ? 'company' : 'user'} />
+              <div className="flex flex-col items-start gap-3 sm:items-end">
+                <div className="flex flex-wrap gap-2">
+                  {!isCompany && <Link to={`/inbox/${profile.id}`} className="btn-secondary text-sm">Message</Link>}
+                  <ReportProfileButton targetUsername={profile.username} targetType={isCompany ? 'company' : 'user'} />
                 {!isCompany && (profile.followForViewer?.direction === 'none' || !profile.followForViewer ? (
                   <button
                     type="button"
@@ -345,6 +347,10 @@ export default function Profile() {
                       Decline
                     </button>
                   </>
+                )}
+                </div>
+                {!isCompany && (
+                  <DmSafetyActions userId={profile.id} username={profile.username} compact />
                 )}
               </div>
             )}

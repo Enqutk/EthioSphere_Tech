@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { messagesApi } from '@/shared/api';
 import { useAuth } from '@/shared/components/AuthProvider';
+import { DmSafetyActions } from '@/shared/components/DmSafetyActions';
 
 type MsgRow = { id: string; body: string; createdAt: string; senderId: string };
 
@@ -12,10 +13,13 @@ export default function InboxChat() {
   const [otherName, setOtherName] = useState('');
   const [otherUsername, setOtherUsername] = useState('');
   const [messages, setMessages] = useState<MsgRow[]>([]);
+  const [canSend, setCanSend] = useState(true);
+  const [blockedByMe, setBlockedByMe] = useState(false);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!ready) return;
@@ -43,6 +47,8 @@ export default function InboxChat() {
         setOtherName(data.otherUser.name);
         setOtherUsername(data.otherUser.username);
         setMessages(data.messages as MsgRow[]);
+        setCanSend(data.canSend !== false);
+        setBlockedByMe(Boolean(data.blockedByMe));
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -56,11 +62,11 @@ export default function InboxChat() {
     return () => {
       cancelled = true;
     };
-  }, [user, ready, userId, navigate]);
+  }, [user, ready, userId, navigate, reloadKey]);
 
   async function handleSend(e: FormEvent) {
     e.preventDefault();
-    if (!user || !userId || !text.trim()) return;
+    if (!user || !userId || !text.trim() || !canSend) return;
     setSending(true);
     setError('');
     try {
@@ -70,6 +76,8 @@ export default function InboxChat() {
       setOtherName(data.otherUser.name);
       setOtherUsername(data.otherUser.username);
       setMessages(data.messages as MsgRow[]);
+      setCanSend(data.canSend !== false);
+      setBlockedByMe(Boolean(data.blockedByMe));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not send message');
     } finally {
@@ -82,15 +90,28 @@ export default function InboxChat() {
   return (
     <div className="mx-auto flex max-w-xl flex-col px-6 py-12" style={{ minHeight: 'calc(100vh - 8rem)' }}>
       <Link to="/inbox" className="text-sm text-slate-400 hover:text-brand-400">← Inbox</Link>
-      <div className="mt-4 flex items-center justify-between gap-2">
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <h1 className="font-mono text-xl font-semibold text-slate-100">
           {loading ? '…' : otherName}{' '}
           <span className="text-sm font-normal text-slate-500">@{otherUsername}</span>
         </h1>
-        {otherUsername ? (
-          <Link to={`/profile/${otherUsername}`} className="text-xs text-brand-400 hover:underline">Profile</Link>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-3">
+          {otherUsername ? (
+            <Link to={`/profile/${otherUsername}`} className="text-xs text-brand-400 hover:underline">Profile</Link>
+          ) : null}
+          {userId && otherUsername ? (
+            <DmSafetyActions
+              userId={userId}
+              username={otherUsername}
+              compact
+              onChange={() => setReloadKey((n) => n + 1)}
+            />
+          ) : null}
+        </div>
       </div>
+      {blockedByMe && !error && (
+        <p className="mt-3 text-sm text-amber-300/90">You blocked this user — unblock to send new messages.</p>
+      )}
       {error && (
         <div className="mt-4 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300" role="alert">
           {error}
@@ -126,10 +147,11 @@ export default function InboxChat() {
               value={text}
               onChange={(e) => setText(e.target.value)}
               className="input min-h-[44px] flex-1 resize-none py-2"
-              placeholder="Write a message…"
+              placeholder={canSend ? 'Write a message…' : 'Messaging is disabled for this conversation.'}
               rows={2}
+              disabled={!canSend}
             />
-            <button type="submit" className="btn-primary self-end px-4" disabled={sending || !text.trim()}>
+            <button type="submit" className="btn-primary self-end px-4" disabled={sending || !text.trim() || !canSend}>
               Send
             </button>
           </div>

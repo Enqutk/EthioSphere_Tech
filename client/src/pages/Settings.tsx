@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/shared/components/AuthProvider';
 import { usersApi, companiesApi } from '@/shared/api';
+import { messagesApi } from '@/shared/api/messages';
 import type { NotificationPrefs } from '@/shared/api/users';
 import { authApi } from '@/shared/api/auth';
 import { canApplyForVerification, hasVerificationUnderReview } from '@/shared/constants/verification';
@@ -96,10 +97,31 @@ export default function Settings() {
   const [verifySaving, setVerifySaving] = useState(false);
 
   const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<
+    { id: string; name: string; username: string; blockedAt: string }[]
+  >([]);
+  const [blocksLoading, setBlocksLoading] = useState(false);
 
   useEffect(() => {
     authApi.googleStatus().then((r) => setGoogleEnabled(r.enabled)).catch(() => setGoogleEnabled(false));
   }, []);
+
+  async function loadBlockedUsers() {
+    setBlocksLoading(true);
+    try {
+      const res = await messagesApi.listBlocks();
+      setBlockedUsers(res.users);
+    } catch {
+      setBlockedUsers([]);
+    } finally {
+      setBlocksLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!ready || !user) return;
+    loadBlockedUsers();
+  }, [ready, user]);
 
   useEffect(() => {
     if (!ready) return;
@@ -377,6 +399,43 @@ export default function Settings() {
               {passwordSaving ? 'Saving…' : data.hasPassword ? 'Update password' : 'Set password'}
             </button>
           </form>
+        </SettingsSection>
+
+        <SettingsSection title="Blocked users">
+          <p className="text-sm text-slate-400">
+            Blocked users cannot message you. You can unblock them here anytime.
+          </p>
+          {blocksLoading ? (
+            <p className="text-sm text-slate-500">Loading…</p>
+          ) : blockedUsers.length === 0 ? (
+            <p className="text-sm text-slate-500">You haven&apos;t blocked anyone.</p>
+          ) : (
+            <ul className="space-y-2">
+              {blockedUsers.map((u) => (
+                <li
+                  key={u.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-800/80 bg-surface-900/50 px-4 py-3"
+                >
+                  <div>
+                    <Link to={`/profile/${u.username}`} className="text-sm text-slate-200 hover:text-brand-400">
+                      {u.name} <span className="text-slate-500">@{u.username}</span>
+                    </Link>
+                    <p className="text-xs text-slate-600">Blocked {new Date(u.blockedAt).toLocaleDateString()}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-secondary text-xs"
+                    onClick={async () => {
+                      await messagesApi.unblock(u.id);
+                      await loadBlockedUsers();
+                    }}
+                  >
+                    Unblock
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </SettingsSection>
 
         {prefs && (
