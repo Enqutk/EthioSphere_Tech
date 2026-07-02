@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { projectsApi } from '@/shared/api';
 import { useAuth } from '@/shared/components/AuthProvider';
 import { FollowCreatorActions } from '@/shared/components/FollowCreatorActions';
-import { ReadmePreview } from '@/shared/components/ReadmePreview';
 import { PulseStrip } from '@/shared/components/PulseStrip';
 import { RolesNeededPicker, RolesNeededBadges } from '@/shared/components/RolesNeededPicker';
 import {
@@ -12,6 +11,10 @@ import {
   type ProjectTeamRole,
   type PrimaryDiscipline,
 } from '@/shared/constants/disciplines';
+
+const ReadmePreview = lazy(() =>
+  import('@/shared/components/ReadmePreview').then((m) => ({ default: m.ReadmePreview })),
+);
 
 type GithubRepoInfo = {
   full_name?: string;
@@ -491,7 +494,9 @@ export default function ProjectDetail() {
               <div>
                 <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">README</h3>
                 <div className="mt-2 max-h-[min(70vh,32rem)] overflow-auto rounded-lg border border-slate-700 bg-surface-950 p-4">
-                  <ReadmePreview markdown={gh.readme} />
+                  <Suspense fallback={<p className="text-sm text-slate-500">Loading README…</p>}>
+                    <ReadmePreview markdown={gh.readme} />
+                  </Suspense>
                 </div>
               </div>
             )}
