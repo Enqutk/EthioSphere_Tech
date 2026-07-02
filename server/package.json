@@ -1,6 +1,12 @@
 {
   "name": "programmers-world-server",
   "version": "1.0.0",
+  "license": "MIT",
+  "author": "Enqutk",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Enqutk/EthioSphere_Tech.git"
+  },
   "type": "module",
   "engines": {
     "node": "22.x"
