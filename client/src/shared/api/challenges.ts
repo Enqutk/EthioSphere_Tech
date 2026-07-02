@@ -15,9 +15,9 @@ export type ChallengeCreatedBy = {
 };
 
 export const challengesApi = {
-  list: async (params?: { difficulty?: string }, token?: string | null) => {
+  list: async (params?: { difficulty?: string }) => {
     const q = new URLSearchParams(params as Record<string, string>).toString();
-    const raw = await api<unknown>(`/api/challenges${q ? `?${q}` : ''}`, token ? { token } : {});
+    const raw = await api<unknown>(`/api/challenges${q ? `?${q}` : ''}`);
     if (Array.isArray(raw)) {
       return {
         challenges: raw,
@@ -27,32 +27,25 @@ export const challengesApi = {
     }
     return raw as ChallengesListPayload;
   },
-  get: (id: string, token?: string | null) =>
-    api<Record<string, unknown>>(`/api/challenges/${id}`, token ? { token } : {}),
-  submit: (
-    token: string,
-    id: string,
-    body: { solutionUrl?: string; solutionText?: string; solutionLanguage?: string },
-  ) => api<unknown>(`/api/challenges/${id}/submit`, { method: 'POST', body: JSON.stringify(body), token }),
-  create: (
-    token: string,
-    body: {
-      title: string;
-      description: string;
-      difficulty: 'EASY' | 'MEDIUM' | 'HARD';
-      rewardPoints?: number;
-      submissionOpensAt?: string;
-      submissionClosesAt?: string;
-      submissionMode?: 'GITHUB' | 'CODE';
-      requiredLanguages?: string[];
-    },
-  ) => api<unknown>('/api/challenges', { method: 'POST', body: JSON.stringify(body), token }),
-  likeSubmission: (token: string, challengeId: string, submissionId: string) =>
+  get: (id: string) => api<Record<string, unknown>>(`/api/challenges/${id}`),
+  submit: (id: string, body: { solutionUrl?: string; solutionText?: string; solutionLanguage?: string }) =>
+    api<unknown>(`/api/challenges/${id}/submit`, { method: 'POST', body: JSON.stringify(body) }),
+  create: (body: {
+    title: string;
+    description: string;
+    difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+    rewardPoints?: number;
+    submissionOpensAt?: string;
+    submissionClosesAt?: string;
+    submissionMode?: 'GITHUB' | 'CODE';
+    requiredLanguages?: string[];
+  }) => api<unknown>('/api/challenges', { method: 'POST', body: JSON.stringify(body) }),
+  likeSubmission: (challengeId: string, submissionId: string) =>
     api<{ liked: boolean; likeCount: number }>(
       `/api/challenges/${challengeId}/submissions/${submissionId}/like`,
-      { method: 'POST', token },
+      { method: 'POST' },
     ),
-  listSubmissionComments: (challengeId: string, submissionId: string, token?: string | null) =>
+  listSubmissionComments: (challengeId: string, submissionId: string) =>
     api<
       {
         id: string;
@@ -60,11 +53,10 @@ export const challengesApi = {
         createdAt: string;
         user: { id: string; username: string; name: string; avatarUrl?: string | null };
       }[]
-    >(`/api/challenges/${challengeId}/submissions/${submissionId}/comments`, token ? { token } : {}),
-  addSubmissionComment: (token: string, challengeId: string, submissionId: string, body: string) =>
+    >(`/api/challenges/${challengeId}/submissions/${submissionId}/comments`),
+  addSubmissionComment: (challengeId: string, submissionId: string, body: string) =>
     api<unknown>(`/api/challenges/${challengeId}/submissions/${submissionId}/comments`, {
       method: 'POST',
-      token,
       body: JSON.stringify({ body }),
     }),
 };

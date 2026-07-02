@@ -148,7 +148,7 @@ export async function api<T>(
     ...(init.headers as Record<string, string>),
   };
   if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(url, { ...init, headers });
+  const res = await fetch(url, { ...init, headers, credentials: 'include' });
   const raw = await res.text();
   const ct = res.headers.get('content-type') || '';
   let parsed: unknown;
@@ -198,7 +198,7 @@ export async function apiWithResponse<T>(
     ...(init.headers as Record<string, string>),
   };
   if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(url, { ...init, headers });
+  const res = await fetch(url, { ...init, headers, credentials: 'include' });
   const raw = await res.text();
   const ct = res.headers.get('content-type') || '';
   let parsed: unknown;

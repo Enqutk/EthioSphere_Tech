@@ -32,23 +32,21 @@ export type CompanyProfile = {
 };
 
 export const companiesApi = {
-  get: (username: string, token?: string | null) =>
-    api<CompanyProfile>(`/api/companies/${encodeURIComponent(username)}`, { token: token || undefined }),
+  get: (username: string) =>
+    api<CompanyProfile>(`/api/companies/${encodeURIComponent(username)}`),
 
-  review: (token: string, username: string, body: { rating: number; body: string }) =>
+  review: (username: string, body: { rating: number; body: string }) =>
     api(`/api/companies/${encodeURIComponent(username)}/reviews`, {
       method: 'POST',
-      token,
       body: JSON.stringify(body),
     }),
 
-  toggleLike: (token: string, username: string) =>
+  toggleLike: (username: string) =>
     api<{ liked: boolean; likeCount: number }>(`/api/companies/${encodeURIComponent(username)}/like`, {
       method: 'POST',
-      token,
     }),
 
-  me: (token: string) =>
+  me: () =>
     api<{
       id: string;
       legalName: string;
@@ -58,12 +56,9 @@ export const companiesApi = {
       verificationNote?: string | null;
       verificationRequestedAt?: string | null;
       verifiedAt?: string | null;
-    }>('/api/companies/me', { token }),
+    }>('/api/companies/me'),
 
-  updateMe: (
-    token: string,
-    body: { legalName?: string; website?: string; description?: string },
-  ) =>
+  updateMe: (body: { legalName?: string; website?: string; description?: string }) =>
     api<{
       id: string;
       legalName: string;
@@ -73,9 +68,9 @@ export const companiesApi = {
       verificationNote?: string | null;
       verificationRequestedAt?: string | null;
       verifiedAt?: string | null;
-    }>('/api/companies/me', { method: 'PATCH', body: JSON.stringify(body), token }),
+    }>('/api/companies/me', { method: 'PATCH', body: JSON.stringify(body) }),
 
-  applyVerification: (token: string, body: { message?: string }) =>
+  applyVerification: (body: { message?: string }) =>
     api<{
       message: string;
       company: {
@@ -88,5 +83,5 @@ export const companiesApi = {
         verificationRequestedAt?: string | null;
         verifiedAt?: string | null;
       };
-    }>('/api/companies/me/apply-verification', { method: 'POST', body: JSON.stringify(body), token }),
+    }>('/api/companies/me/apply-verification', { method: 'POST', body: JSON.stringify(body) }),
 };

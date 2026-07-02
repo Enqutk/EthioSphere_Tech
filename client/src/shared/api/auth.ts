@@ -27,11 +27,11 @@ export const authApi = {
     dateOfBirth: string;
     gender: string;
   }) =>
-    api<{ user: User; token: string; githubNote?: string }>('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
+    api<{ user: User; githubNote?: string }>('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
 
   login: async (body: { email: string; password: string }) => {
     try {
-      return await api<{ user: User; token: string }>('/api/auth/login', { method: 'POST', body: JSON.stringify(body) });
+      return await api<{ user: User }>('/api/auth/login', { method: 'POST', body: JSON.stringify(body) });
     } catch (err) {
       if (err instanceof ApiError && err.status === 403 && err.body.code === 'ACCOUNT_BANNED') {
         const banErr = new ApiError(String(err.body.error || err.message), 403, err.body);
@@ -44,6 +44,8 @@ export const authApi = {
 
   submitBanAppeal: (body: { email: string; password: string; message: string; explanation?: string }) =>
     api<{ ok: boolean; message: string }>('/api/auth/ban-appeal', { method: 'POST', body: JSON.stringify(body) }),
+
+  logout: () => api<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }),
 
   googleStatus: () => api<{ enabled: boolean }>('/api/auth/google/status'),
 
