@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, lazy, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { projectsApi } from '@/shared/api';
 import { useAuth } from '@/shared/components/AuthProvider';
+import { usePageMeta } from '@/shared/hooks/usePageMeta';
 import { FollowCreatorActions } from '@/shared/components/FollowCreatorActions';
 import { PulseStrip } from '@/shared/components/PulseStrip';
 import { RolesNeededPicker, RolesNeededBadges } from '@/shared/components/RolesNeededPicker';
@@ -11,103 +12,10 @@ import {
   type ProjectTeamRole,
   type PrimaryDiscipline,
 } from '@/shared/constants/disciplines';
+import { ProjectGithubPanel } from '@/pages/project-detail/ProjectGithubPanel';
+import { PROJECT_STATUS_LABEL, PROJECT_TYPE_LABEL, type ProjectDetailData } from '@/pages/project-detail/types';
 
-const ReadmePreview = lazy(() =>
-  import('@/shared/components/ReadmePreview').then((m) => ({ default: m.ReadmePreview })),
-);
-
-type GithubRepoInfo = {
-  full_name?: string;
-  html_url?: string;
-  name?: string;
-  description?: string | null;
-  stargazers_count?: number;
-  forks_count?: number;
-  open_issues_count?: number;
-  watchers_count?: number;
-  subscribers_count?: number;
-  default_branch?: string;
-  homepage?: string | null;
-  topics?: string[];
-  archived?: boolean;
-  disabled?: boolean;
-  fork?: boolean;
-  parent?: string | null;
-  pushed_at?: string;
-  created_at?: string;
-  updated_at?: string;
-  size?: number;
-  language?: string | null;
-  visibility?: string;
-  owner?: { login?: string; avatar_url?: string; html_url?: string; type?: string } | null;
-  license?: { key?: string; name?: string; spdx_id?: string } | null;
-};
-
-type GithubContributor = {
-  login: string;
-  avatar_url?: string;
-  html_url?: string;
-  contributions?: number;
-};
-
-type GithubDataBundle = {
-  repo?: GithubRepoInfo | null;
-  languages?: Record<string, number>;
-  readme?: string | null;
-  contributors?: GithubContributor[];
-};
-
-type Project = {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  type: string;
-  visibility?: string;
-  seekingReview?: boolean;
-  rolesNeeded?: string[];
-  githubHtmlUrl?: string | null;
-  githubFullName?: string | null;
-  githubData?: GithubDataBundle | null;
-  githubSyncedAt?: string | null;
-  viewCount?: number;
-  likeCount?: number;
-  pulseScore?: number;
-  likedByViewer?: boolean;
-  owner: { id: string; name: string; username: string; avatarUrl?: string | null; rank: string };
-  members: { role: string; user: { id: string; name: string; username: string; avatarUrl?: string | null } }[];
-};
-
-const STATUS: Record<string, string> = { PLANNING: 'Planning', IN_PROGRESS: 'In progress', COMPLETED: 'Completed', ARCHIVED: 'Archived' };
-const TYPE: Record<string, string> = { OPEN_SOURCE: 'Open source', HACKATHON: 'Hackathon', LEARNING: 'Learning' };
-
-function LanguageBars({ languages }: { languages: Record<string, number> }) {
-  const entries = useMemo(() => Object.entries(languages).sort((a, b) => b[1] - a[1]), [languages]);
-  const total = useMemo(() => entries.reduce((s, [, n]) => s + n, 0) || 1, [entries]);
-  const colors = ['bg-cyan-500', 'bg-violet-500', 'bg-amber-500', 'bg-emerald-500', 'bg-rose-500', 'bg-slate-500'];
-  return (
-    <div className="space-y-2">
-      <div className="flex h-3 overflow-hidden rounded-full bg-surface-800">
-        {entries.map(([lang, bytes], i) => (
-          <div
-            key={lang}
-            className={`${colors[i % colors.length]} min-w-[2px]`}
-            style={{ width: `${(bytes / total) * 100}%` }}
-            title={`${lang}: ${((bytes / total) * 100).toFixed(1)}%`}
-          />
-        ))}
-      </div>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
-        {entries.map(([lang, bytes], i) => (
-          <li key={lang} className="flex items-center gap-1.5">
-            <span className={`h-2 w-2 rounded-full ${colors[i % colors.length]}`} />
-            {lang} <span className="text-slate-600">{((bytes / total) * 100).toFixed(1)}%</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
+type Project = ProjectDetailData;
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -176,6 +84,12 @@ export default function ProjectDetail() {
     setJoinRole(map[user.primaryDiscipline] ?? 'fullstack');
   }, [user?.primaryDiscipline]);
 
+  usePageMeta({
+    title: project?.title,
+    description: project?.description?.slice(0, 160),
+    path: project ? `/projects/${project.id}` : undefined,
+  });
+
   async function handleJoin() {
     if (!user) {
       navigate('/login');
@@ -243,8 +157,8 @@ export default function ProjectDetail() {
           <div>
             <h1 className="font-mono text-2xl font-semibold text-slate-100">{project.title}</h1>
             <div className="mt-2 flex flex-wrap gap-2">
-              <span className="rounded bg-surface-800 px-2 py-0.5 text-xs text-slate-400">{STATUS[project.status] ?? project.status}</span>
-              <span className="rounded bg-surface-800 px-2 py-0.5 text-xs text-slate-400">{TYPE[project.type] ?? project.type}</span>
+              <span className="rounded bg-surface-800 px-2 py-0.5 text-xs text-slate-400">{PROJECT_STATUS_LABEL[project.status] ?? project.status}</span>
+              <span className="rounded bg-surface-800 px-2 py-0.5 text-xs text-slate-400">{PROJECT_TYPE_LABEL[project.type] ?? project.type}</span>
               {repo?.archived && <span className="rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-400">Archived on GitHub</span>}
               {project.visibility && project.visibility !== 'PUBLIC' && (
                 <span className="rounded bg-amber-500/15 px-2 py-0.5 text-xs text-amber-400">
@@ -364,144 +278,14 @@ export default function ProjectDetail() {
           </div>
         )}
 
-        {!project.githubFullName && (
-          <p className="mt-6 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-200">
-            This project has no linked GitHub repository (legacy). New projects require a public repo.
-          </p>
-        )}
-
-        {project.githubFullName && !repo && project.githubHtmlUrl && (
-          <p className="mt-6 text-sm text-slate-500">
-            Full GitHub metadata could not be loaded.{' '}
-            <a href={project.githubHtmlUrl} target="_blank" rel="noopener noreferrer" className="text-brand-400 hover:underline">
-              Open the repository on GitHub
-            </a>
-            .
-          </p>
-        )}
-
-        {repo && (
-          <div className="mt-8 space-y-8 border-t border-slate-700 pt-8">
-            <h2 className="font-mono text-lg font-medium text-slate-200">From GitHub</h2>
-
-            {repo.description && (
-              <div>
-                <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Repository description</h3>
-                <p className="mt-1 text-slate-300">{repo.description}</p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {[
-                ['Stars', repo.stargazers_count],
-                ['Forks', repo.forks_count],
-                ['Open issues', repo.open_issues_count],
-                ['Watchers', repo.watchers_count ?? repo.subscribers_count],
-              ].map(([label, val]) => (
-                <div key={String(label)} className="rounded-lg bg-surface-800/80 px-3 py-2">
-                  <div className="text-xs text-slate-500">{label}</div>
-                  <div className="font-mono text-lg text-slate-100">{val ?? '—'}</div>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex flex-wrap gap-4 text-sm text-slate-400">
-              {repo.default_branch && (
-                <span>Default branch: <code className="text-brand-400">{repo.default_branch}</code></span>
-              )}
-              {repo.language && <span>Primary language: <span className="text-slate-200">{repo.language}</span></span>}
-              {repo.visibility && <span>Visibility: {repo.visibility}</span>}
-              {repo.pushed_at && <span>Last push: {new Date(repo.pushed_at).toLocaleDateString()}</span>}
-              {repo.size != null && <span>Size: {repo.size} KB (GitHub index)</span>}
-            </div>
-
-            {repo.homepage && (
-              <div>
-                <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Homepage</h3>
-                <a href={repo.homepage} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-brand-400 hover:underline">
-                  {repo.homepage}
-                </a>
-              </div>
-            )}
-
-            {repo.topics && repo.topics.length > 0 && (
-              <div>
-                <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Topics</h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {repo.topics.map((t) => (
-                    <span key={t} className="rounded-full bg-surface-800 px-2.5 py-0.5 text-xs text-slate-300">{t}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {repo.license && (repo.license.name || repo.license.spdx_id) && (
-              <div>
-                <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">License</h3>
-                <p className="mt-1 text-slate-300">{repo.license.name} {repo.license.spdx_id && repo.license.spdx_id !== 'NOASSERTION' ? `(${repo.license.spdx_id})` : ''}</p>
-              </div>
-            )}
-
-            {repo.owner?.login && (
-              <div className="flex items-center gap-3">
-                {repo.owner.avatar_url && (
-                  <img src={repo.owner.avatar_url} alt="" className="h-10 w-10 rounded-full border border-slate-600" />
-                )}
-                <div>
-                  <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Owner on GitHub</h3>
-                  {repo.owner.html_url ? (
-                    <a href={repo.owner.html_url} target="_blank" rel="noopener noreferrer" className="text-brand-400 hover:underline">
-                      @{repo.owner.login}
-                    </a>
-                  ) : (
-                    <span className="text-slate-300">@{repo.owner.login}</span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {hasLanguages && (
-              <div>
-                <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Languages</h3>
-                <div className="mt-3">
-                  <LanguageBars languages={languages} />
-                </div>
-              </div>
-            )}
-
-            {gh?.contributors && gh.contributors.length > 0 && (
-              <div>
-                <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Contributors</h3>
-                <ul className="mt-3 flex flex-wrap gap-3">
-                  {gh.contributors.map((c) => (
-                    <li key={c.login}>
-                      {c.html_url ? (
-                        <a href={c.html_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-slate-300 hover:text-brand-400">
-                          {c.avatar_url && <img src={c.avatar_url} alt="" className="h-8 w-8 rounded-full" />}
-                          <span>@{c.login}</span>
-                          {c.contributions != null && <span className="text-xs text-slate-500">({c.contributions})</span>}
-                        </a>
-                      ) : (
-                        <span className="text-sm text-slate-400">@{c.login}</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {gh?.readme && (
-              <div>
-                <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">README</h3>
-                <div className="mt-2 max-h-[min(70vh,32rem)] overflow-auto rounded-lg border border-slate-700 bg-surface-950 p-4">
-                  <Suspense fallback={<p className="text-sm text-slate-500">Loading README…</p>}>
-                    <ReadmePreview markdown={gh.readme} />
-                  </Suspense>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        <ProjectGithubPanel
+          githubFullName={project.githubFullName}
+          githubHtmlUrl={project.githubHtmlUrl}
+          gh={gh}
+          repo={repo}
+          languages={languages}
+          hasLanguages={hasLanguages}
+        />
 
         {project.members.length > 0 && (
           <div className="mt-8 border-t border-slate-700 pt-6">

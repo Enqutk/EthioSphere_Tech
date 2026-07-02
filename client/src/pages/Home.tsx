@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { postsApi, projectsApi } from '@/shared/api';
 import { useAuth } from '@/shared/components/AuthProvider';
+import { usePageMeta } from '@/shared/hooks/usePageMeta';
 import { RolesNeededBadges } from '@/shared/components/RolesNeededPicker';
 import { SuggestedPeople } from '@/shared/components/SuggestedPeople';
 
@@ -54,6 +55,8 @@ const PROJECT_STATUS: Record<string, string> = {
 const PREVIEW_COUNT = 4;
 
 export default function Home() {
+  usePageMeta({ path: '/' });
+
   const { user, ready } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();

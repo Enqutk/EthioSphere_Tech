@@ -4,6 +4,7 @@ import { useAuth } from '@/shared/components/AuthProvider';
 import { authApi, type BanInfo } from '@/shared/api/auth';
 import { ApiError } from '@/shared/api/http';
 import { GoogleSignInButton } from '@/shared/components/GoogleSignInButton';
+import { usePageMeta } from '@/shared/hooks/usePageMeta';
 
 function formatBanDate(iso: string | null | undefined) {
   if (!iso) return null;
@@ -14,6 +15,8 @@ function formatBanDate(iso: string | null | undefined) {
 }
 
 export default function Login() {
+  usePageMeta({ title: 'Sign in', path: '/login' });
+
   const navigate = useNavigate();
   const location = useLocation();
   const { login, user, ready } = useAuth();
