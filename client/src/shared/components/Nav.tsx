@@ -23,10 +23,10 @@ export function Nav() {
     };
   }, [menuOpen]);
 
-  function handleLogout() {
+  async function handleLogout() {
     if (!window.confirm('Sign out of your account? You can log back in anytime.')) return;
     setMenuOpen(false);
-    logout();
+    await logout();
     navigate('/login', { replace: true, state: { signedOut: true } });
   }
 

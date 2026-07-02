@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { reportsApi } from '@/shared/api';
 
 type Props = {
-  token: string;
   targetUsername: string;
   targetType: 'user' | 'company';
 };
@@ -14,7 +13,7 @@ const REASONS = [
   { value: 'OTHER', label: 'Other' },
 ] as const;
 
-export function ReportProfileButton({ token, targetUsername, targetType }: Props) {
+export function ReportProfileButton({ targetUsername, targetType }: Props) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState<(typeof REASONS)[number]['value']>('SPAM');
   const [details, setDetails] = useState('');
@@ -26,7 +25,7 @@ export function ReportProfileButton({ token, targetUsername, targetType }: Props
     setLoading(true);
     setMessage('');
     try {
-      await reportsApi.submit(token, {
+      await reportsApi.submit({
         targetType,
         targetUsername,
         reason,

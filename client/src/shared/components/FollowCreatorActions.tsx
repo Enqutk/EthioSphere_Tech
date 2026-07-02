@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { followApi, type FollowForViewer } from '@/shared/api';
-import { useAuth, getStoredToken } from '@/shared/components/AuthProvider';
+import { useAuth } from '@/shared/components/AuthProvider';
 
 type Props = {
   username: string;
@@ -14,22 +14,20 @@ type Props = {
 
 export function FollowCreatorActions({ username, userId, initialFollowForViewer, onChanged, className }: Props) {
   const { user } = useAuth();
-  const token = getStoredToken();
   const [fv, setFv] = useState<FollowForViewer | null | undefined>(initialFollowForViewer ?? undefined);
-  const [loading, setLoading] = useState(initialFollowForViewer === undefined && !!token);
+  const [loading, setLoading] = useState(initialFollowForViewer === undefined && !!user);
 
   const refresh = useCallback(async () => {
-    const t = getStoredToken();
-    if (!t) return;
+    if (!user) return;
     try {
-      const r = await followApi.state(t, username);
+      const r = await followApi.state(username);
       if (r.self) setFv(null);
       else setFv(r.followForViewer);
     } catch {
       setFv(null);
     }
     onChanged?.();
-  }, [username, onChanged]);
+  }, [username, onChanged, user]);
 
   useEffect(() => {
     if (initialFollowForViewer !== undefined) {
@@ -37,14 +35,14 @@ export function FollowCreatorActions({ username, userId, initialFollowForViewer,
       setLoading(false);
       return;
     }
-    if (!token) {
+    if (!user) {
       setLoading(false);
       return;
     }
     let cancelled = false;
     setLoading(true);
     followApi
-      .state(token, username)
+      .state(username)
       .then((r) => {
         if (cancelled) return;
         if (r.self) setFv(null);
@@ -59,11 +57,11 @@ export function FollowCreatorActions({ username, userId, initialFollowForViewer,
     return () => {
       cancelled = true;
     };
-  }, [username, token, initialFollowForViewer]);
+  }, [username, user, initialFollowForViewer]);
 
   if (user?.username?.toLowerCase() === username.toLowerCase()) return null;
 
-  if (!token) {
+  if (!user) {
     return (
       <div className={className}>
         <Link to="/login" state={{ from: window.location.pathname }} className="text-sm text-brand-400 hover:underline">
@@ -91,9 +89,7 @@ export function FollowCreatorActions({ username, userId, initialFollowForViewer,
           type="button"
           className="btn-primary text-xs py-1 px-2"
           onClick={async () => {
-            const t = getStoredToken();
-            if (!t) return;
-            await followApi.follow(t, username);
+            await followApi.follow(username);
             await refresh();
           }}
         >
@@ -105,9 +101,7 @@ export function FollowCreatorActions({ username, userId, initialFollowForViewer,
           type="button"
           className="btn-secondary text-xs py-1 px-2"
           onClick={async () => {
-            const t = getStoredToken();
-            if (!t) return;
-            await followApi.unfollow(t, username);
+            await followApi.unfollow(username);
             await refresh();
           }}
         >
@@ -119,9 +113,7 @@ export function FollowCreatorActions({ username, userId, initialFollowForViewer,
           type="button"
           className="btn-secondary text-xs py-1 px-2"
           onClick={async () => {
-            const t = getStoredToken();
-            if (!t) return;
-            await followApi.unfollow(t, username);
+            await followApi.unfollow(username);
             await refresh();
           }}
         >
@@ -133,9 +125,7 @@ export function FollowCreatorActions({ username, userId, initialFollowForViewer,
           type="button"
           className="btn-primary text-xs py-1 px-2"
           onClick={async () => {
-            const t = getStoredToken();
-            if (!t) return;
-            await followApi.follow(t, username);
+            await followApi.follow(username);
             await refresh();
           }}
         >
@@ -149,9 +139,7 @@ export function FollowCreatorActions({ username, userId, initialFollowForViewer,
             type="button"
             className="btn-primary text-xs py-1 px-2"
             onClick={async () => {
-              const t = getStoredToken();
-              if (!t) return;
-              await followApi.accept(t, fv.id!);
+              await followApi.accept(fv.id!);
               await refresh();
             }}
           >
@@ -161,9 +149,7 @@ export function FollowCreatorActions({ username, userId, initialFollowForViewer,
             type="button"
             className="btn-secondary text-xs py-1 px-2"
             onClick={async () => {
-              const t = getStoredToken();
-              if (!t) return;
-              await followApi.reject(t, fv.id!);
+              await followApi.reject(fv.id!);
               await refresh();
             }}
           >

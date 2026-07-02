@@ -11,7 +11,6 @@ import {
   type SocialPresenceForm,
 } from '@/shared/constants/socialPlatforms';
 import { usersApi } from '@/shared/api';
-import { getStoredToken } from '@/shared/components/AuthProvider';
 
 type Props = {
   isCompany: boolean;
@@ -116,13 +115,11 @@ export function SocialPresenceSettings({ isCompany, initial, onSaved, onMessage,
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    const token = getStoredToken();
-    if (!token) return;
     setSaving(true);
     onError?.('');
     try {
       const payload = buildSocialPresencePayload(form);
-      await usersApi.updateMe(token, payload);
+      await usersApi.updateMe(payload);
       onMessage?.('Online presence updated — links are live on your public profile.');
       onSaved?.();
     } catch (err) {
