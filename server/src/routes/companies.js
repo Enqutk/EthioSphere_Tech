@@ -112,8 +112,14 @@ companiesRouter.post(
       if (company.verificationStatus === 'VERIFIED') {
         return res.status(400).json({ error: 'Your company is already verified.' });
       }
-      if (company.verificationStatus === 'PENDING') {
+      const legacyPending =
+        company.verificationStatus === 'PENDING' && !company.verificationRequestedAt;
+      if (company.verificationStatus === 'PENDING' && !legacyPending) {
         return res.status(409).json({ error: 'A verification request is already under review.' });
+      }
+
+      if (!['UNVERIFIED', 'REJECTED', 'PENDING'].includes(company.verificationStatus)) {
+        return res.status(400).json({ error: 'Verification cannot be requested for this company.' });
       }
 
       const message = typeof req.body.message === 'string' ? req.body.message.trim() : '';
