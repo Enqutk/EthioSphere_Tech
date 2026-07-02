@@ -238,13 +238,22 @@ Protected routes require header: `Authorization: Bearer <token>`.
 ## Security (implemented)
 
 - Password hashing (bcrypt)
-- JWT with expiry; production boot fails if `JWT_SECRET` or `CLIENT_ORIGIN` is missing
+- **httpOnly session cookie** (`pw_session`); JWT no longer stored in `localStorage`
+- Production boot fails if `JWT_SECRET`, `CLIENT_ORIGIN`, or `GITHUB_TOKEN` is missing
 - Rate limiting on `/api/`
 - Input validation (express-validator)
 - CORS restricted to `CLIENT_ORIGIN` in production
 - GitHub API token required in production (`GITHUB_TOKEN`) for sustainable rate limits
 
 ## Roadmap
+
+### Security & trust (see [SECURITY.md](./SECURITY.md))
+
+1. **DM block / mute** — stop unwanted messages before public scale
+2. **Password reset** — self-service recovery for email/password accounts
+3. **Session hardening** — optional shorter-lived sessions + refresh flow
+
+### Product
 
 - **Learning paths** — missions, tasks, structured curricula
 - **Events & hackathons** — scheduled competitions beyond coding challenges
