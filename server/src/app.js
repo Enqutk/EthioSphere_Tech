@@ -3,7 +3,8 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { getCorsOrigin, validateProductionConfig } from './config/index.js';
+import { getCorsOrigin, validateProductionConfig, isProductionEnv } from './config/index.js';
+import { checkDatabaseHealth } from './lib/health.js';
 import { authRouter } from './routes/auth.js';
 import { usersRouter } from './routes/users.js';
 import { projectsRouter } from './routes/projects.js';
@@ -60,8 +61,15 @@ export function createApp() {
     res.json({ ok: true, message: 'Programmers World API', health: '/api/health' });
   });
 
-  app.get('/api/health', (req, res) => {
-    res.json({ ok: true, message: 'Programmers World API' });
+  app.get('/api/health', async (req, res) => {
+    const dbHealth = await checkDatabaseHealth();
+    const ok = dbHealth.ok;
+    res.status(ok ? 200 : 503).json({
+      ok,
+      message: 'Programmers World API',
+      db: ok ? 'ok' : 'error',
+      ...(!ok && !isProductionEnv() && dbHealth.error ? { dbError: dbHealth.error } : {}),
+    });
   });
 
   app.use('/api/auth', authRouter);
