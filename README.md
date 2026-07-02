@@ -249,9 +249,8 @@ Protected routes require header: `Authorization: Bearer <token>`.
 
 ### Security & trust (see [SECURITY.md](./SECURITY.md))
 
-1. **DM block / mute** — stop unwanted messages before public scale
-2. **Password reset** — self-service recovery for email/password accounts
-3. **Session hardening** — optional shorter-lived sessions + refresh flow
+1. ~~**DM block / mute**~~ — implemented (`UserBlock`, `DmMute`, Settings → Blocked users)
+2. **Session hardening** — optional shorter-lived sessions + refresh flow
 
 ### Product
 

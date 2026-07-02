@@ -32,13 +32,13 @@ Older clients stored JWT in `localStorage` (`pw_token`). That path was removed; 
 
 ---
 
-## Direct messages — no block / mute
+## Direct messages — block & mute
 
-`POST /api/messages/with/:userId` allows any authenticated user to message any other user. There is no follow requirement and no block list.
+Users can **block** others from a profile or DM chat. Blocked users cannot send messages or open the thread with the blocker. Either party blocking the other stops new messages both ways.
 
-Profile reports support after-the-fact moderation; there is no way for a user to stop someone from DMing them.
+Users can **mute** a conversation to hide it from their inbox without notifying the other person. Muted threads can still be opened via profile → Message.
 
-**Before public messaging at scale:** add a `Block` (or `UserBlock`) model, e.g. `blockerId` / `blockedId`, and reject new DMs when either party has blocked the other. Optional: mute (hide thread without notifying the other user).
+Manage blocks under **Settings → Blocked users**. Block/mute API: `/api/messages/block/:userId`, `/api/messages/mute/:userId`, `/api/messages/blocks`.
 
 ---
 
@@ -64,7 +64,7 @@ Without `RESEND_API_KEY`, reset links are logged to the server console in develo
 
 ## Priority order (recommended)
 
-1. **DM block / mute** — trust & safety before scale
+1. ~~**DM block / mute**~~ — implemented
 2. **Production API wiring** — separate Vercel project for `server/`, `VITE_API_BASE_URL` on frontend build
 3. **Shorter session / refresh tokens** — optional hardening (sessions are 7 days today)
 4. **Email delivery** — `RESEND_API_KEY` for password reset in production
