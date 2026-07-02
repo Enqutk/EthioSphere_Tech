@@ -52,11 +52,11 @@ export default function Register() {
           : {}),
       });
       login(user, token);
-      navigate('/', {
+      navigate(accountKind === 'company' ? '/settings#verification' : '/', {
         state: githubNote
           ? { banner: githubNote }
           : accountKind === 'company'
-            ? { banner: 'Company registered. Apply for verification in Settings when you are ready.' }
+            ? { banner: 'Company registered — request verification below when ready.' }
             : undefined,
       });
     } catch (err: unknown) {

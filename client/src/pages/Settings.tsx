@@ -5,6 +5,7 @@ import { getStoredToken } from '@/shared/components/AuthProvider';
 import { usersApi, companiesApi } from '@/shared/api';
 import type { NotificationPrefs } from '@/shared/api/users';
 import { authApi } from '@/shared/api/auth';
+import { canApplyForVerification, hasVerificationUnderReview } from '@/shared/constants/verification';
 
 type SettingsData = {
   email: string;
@@ -106,8 +107,15 @@ export default function Settings() {
     setError('');
     usersApi
       .me(token)
-      .then((raw) => {
+      .then(async (raw) => {
         const d = raw as SettingsData;
+        if (d.accountType === 'COMPANY' && !d.company) {
+          try {
+            d.company = await companiesApi.me(token);
+          } catch {
+            /* company record may be missing */
+          }
+        }
         setData(d);
         setPrefs(
           d.notificationPrefs ?? {
@@ -127,6 +135,13 @@ export default function Settings() {
       .catch((err) => setError(err instanceof Error ? err.message : 'Could not load settings'))
       .finally(() => setLoading(false));
   }, [ready, user, navigate]);
+
+  useEffect(() => {
+    if (loading || !data) return;
+    if (window.location.hash === '#verification') {
+      document.getElementById('verification')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [loading, data]);
 
   async function savePassword(e: React.FormEvent) {
     e.preventDefault();
@@ -228,7 +243,11 @@ export default function Settings() {
   }
 
   const isCompany = data.accountType === 'COMPANY';
-  const vStatus = data.company?.verificationStatus;
+  const company = data.company;
+  const vStatus = company?.verificationStatus;
+  const vRequestedAt = company?.verificationRequestedAt;
+  const showVerifyApply = canApplyForVerification(vStatus, vRequestedAt);
+  const showVerifyPending = hasVerificationUnderReview(vStatus, vRequestedAt);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
@@ -358,7 +377,7 @@ export default function Settings() {
           </SettingsSection>
         )}
 
-        {isCompany && data.company && (
+        {isCompany && company && (
           <SettingsSection title="Company profile">
             <form onSubmit={saveCompany} className="space-y-3">
               <label className="block text-sm">
@@ -391,47 +410,62 @@ export default function Settings() {
           </SettingsSection>
         )}
 
-        {isCompany && data.company && (
-          <SettingsSection title="Verification badge">
-            {vStatus === 'VERIFIED' && (
-              <p className="text-sm text-emerald-400">Your company is verified. The badge appears on your public profile.</p>
-            )}
-            {vStatus === 'PENDING' && (
-              <p className="text-sm text-amber-400">
-                Your verification request is under review
-                {data.company.verificationRequestedAt
-                  ? ` (submitted ${new Date(data.company.verificationRequestedAt).toLocaleDateString()})`
-                  : ''}
-                .
-              </p>
-            )}
-            {vStatus === 'REJECTED' && (
-              <div className="space-y-2">
-                <p className="text-sm text-red-400">Your previous verification request was not approved.</p>
-                {data.company.verificationNote && (
-                  <p className="text-xs text-slate-500">Note: {data.company.verificationNote}</p>
-                )}
-              </div>
-            )}
-            {(vStatus === 'UNVERIFIED' || vStatus === 'REJECTED') && (
-              <div className="space-y-3">
-                <p className="text-sm text-slate-400">
-                  Apply for a verified company badge so others know your organization is legitimate. Verified companies
-                  can also publish challenges.
+        {isCompany && (
+          <section id="verification" className="card scroll-mt-24 p-6">
+            <h2 className="font-mono text-sm font-semibold uppercase tracking-wide text-brand-400">Verification badge</h2>
+            <div className="mt-4 space-y-4">
+              {!company ? (
+                <p className="text-sm text-amber-400">
+                  Company profile could not be loaded. Try refreshing, or sign out and back in.
                 </p>
-                <textarea
-                  className="input w-full min-h-[4rem]"
-                  placeholder="Optional message for the review team (website, registration docs, etc.)"
-                  value={verifyMessage}
-                  onChange={(e) => setVerifyMessage(e.target.value)}
-                  maxLength={1000}
-                />
-                <button type="button" className="btn-primary text-xs" onClick={applyVerification} disabled={verifySaving}>
-                  {verifySaving ? 'Submitting…' : 'Apply for verification'}
-                </button>
-              </div>
-            )}
-          </SettingsSection>
+              ) : (
+                <>
+                  {vStatus === 'VERIFIED' && (
+                    <p className="text-sm text-emerald-400">
+                      Your company is verified. The badge appears on your public profile.
+                    </p>
+                  )}
+                  {showVerifyPending && (
+                    <p className="text-sm text-amber-400">
+                      Your verification request is under review
+                      {vRequestedAt ? ` (submitted ${new Date(vRequestedAt).toLocaleDateString()})` : ''}.
+                    </p>
+                  )}
+                  {vStatus === 'REJECTED' && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-red-400">Your previous verification request was not approved.</p>
+                      {company.verificationNote && (
+                        <p className="text-xs text-slate-500">Note: {company.verificationNote}</p>
+                      )}
+                    </div>
+                  )}
+                  {showVerifyApply && (
+                    <div className="space-y-3">
+                      <p className="text-sm text-slate-400">
+                        Apply for a verified company badge so others know your organization is legitimate. Verified
+                        companies can also publish challenges.
+                      </p>
+                      <textarea
+                        className="input w-full min-h-[4rem]"
+                        placeholder="Tell us about your company — website, registration, LinkedIn, etc. (optional but helps)"
+                        value={verifyMessage}
+                        onChange={(e) => setVerifyMessage(e.target.value)}
+                        maxLength={1000}
+                      />
+                      <button
+                        type="button"
+                        className="btn-primary text-xs"
+                        onClick={applyVerification}
+                        disabled={verifySaving}
+                      >
+                        {verifySaving ? 'Submitting…' : 'Request verification'}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </section>
         )}
 
         <SettingsSection title="Legal">

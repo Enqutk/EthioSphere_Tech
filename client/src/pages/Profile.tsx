@@ -9,6 +9,7 @@ import {
   type PrimaryDiscipline,
   type DesignLinks,
 } from '@/shared/constants/disciplines';
+import { canApplyForVerification } from '@/shared/constants/verification';
 
 type Profile = {
   id: string;
@@ -28,6 +29,7 @@ type Profile = {
     website: string;
     description?: string | null;
     verificationStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+    verificationRequestedAt?: string | null;
     verifiedAt?: string | null;
     _count?: { likes: number; reviews: number };
   } | null;
@@ -147,13 +149,13 @@ export default function Profile() {
         </span>
       );
     }
-    if (verification === 'UNVERIFIED') {
+    if (verification === 'UNVERIFIED' || (verification === 'PENDING' && !profile?.company?.verificationRequestedAt)) {
       return isOwn ? (
         <Link
-          to="/settings"
-          className="inline-flex items-center gap-1 rounded-full bg-slate-700/40 px-2 py-0.5 text-xs text-slate-400 hover:text-brand-300"
+          to="/settings#verification"
+          className="inline-flex items-center gap-1 rounded-full bg-brand-500/15 px-2 py-0.5 text-xs text-brand-400 hover:bg-brand-500/25"
         >
-          Apply for verification
+          Request verification →
         </Link>
       ) : null;
     }
@@ -268,7 +270,10 @@ export default function Profile() {
           </div>
           <div className="flex flex-col gap-2 sm:items-end">
             {isOwn && (
-              <Link to="/profile/edit" className="btn-secondary">Edit profile</Link>
+              <>
+                <Link to="/settings" className="btn-secondary text-sm">Settings</Link>
+                <Link to="/profile/edit" className="btn-secondary text-sm">Edit profile</Link>
+              </>
             )}
             {!isOwn && token && (
               <div className="flex flex-wrap gap-2">
@@ -463,6 +468,22 @@ export default function Profile() {
             <Link to="/profile/edit" className="text-brand-400 hover:underline">edit profile</Link>.
           </div>
         ) : null}
+
+        {isOwn && isCompany && profile.company && profile.company.verificationStatus !== 'VERIFIED' && (
+          <div className="mt-6 rounded-lg border border-brand-600/40 bg-brand-500/5 p-5">
+            <p className="font-mono text-xs uppercase tracking-wide text-brand-400">Company verification</p>
+            <p className="mt-2 text-sm text-slate-300">
+              {canApplyForVerification(profile.company.verificationStatus, profile.company.verificationRequestedAt)
+                ? 'Get a verified badge on your profile and unlock publishing challenges.'
+                : 'Your verification request is being reviewed by our team.'}
+            </p>
+            {canApplyForVerification(profile.company.verificationStatus, profile.company.verificationRequestedAt) && (
+              <Link to="/settings#verification" className="btn-primary mt-4 inline-block text-xs">
+                Request verification
+              </Link>
+            )}
+          </div>
+        )}
 
         <div className="mt-6 border-t border-slate-700 pt-6">
           <h2 className="font-mono text-sm font-medium text-slate-400">{isCompany ? 'Tags' : 'Skills'}</h2>
