@@ -124,7 +124,14 @@ export default function ProfileEdit() {
     return (
       <div className="mx-auto max-w-xl px-6 py-12">
         <Link to={`/profile/${user.username}`} className="text-sm text-slate-400 hover:text-brand-400">← Back to profile</Link>
-        <p className="mt-6 text-slate-400">Company profiles are managed through your company verification settings.</p>
+        <h1 className="mt-4 font-mono text-2xl font-semibold text-slate-100">Edit profile</h1>
+        <p className="mt-3 text-sm text-slate-400">
+          Company accounts use Settings for brand details, social channels, and verification.
+        </p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link to="/settings#social" className="btn-primary text-xs">Brand & social links</Link>
+          <Link to="/settings#verification" className="btn-secondary text-xs">Verification</Link>
+        </div>
       </div>
     );
   }

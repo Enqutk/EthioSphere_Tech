@@ -6,6 +6,9 @@ import { usersApi, companiesApi } from '@/shared/api';
 import type { NotificationPrefs } from '@/shared/api/users';
 import { authApi } from '@/shared/api/auth';
 import { canApplyForVerification, hasVerificationUnderReview } from '@/shared/constants/verification';
+import { SocialPresenceSettings } from '@/shared/components/settings/SocialPresenceSettings';
+import type { DesignLinks } from '@/shared/constants/disciplines';
+import type { SocialLinks } from '@/shared/constants/socialPlatforms';
 
 type SettingsData = {
   email: string;
@@ -15,6 +18,10 @@ type SettingsData = {
   hasPassword?: boolean;
   googleLinked?: boolean;
   notificationPrefs: NotificationPrefs;
+  githubUrl?: string | null;
+  portfolioUrl?: string | null;
+  designLinks?: DesignLinks | null;
+  socialLinks?: SocialLinks | null;
   company?: {
     id: string;
     legalName: string;
@@ -138,8 +145,9 @@ export default function Settings() {
 
   useEffect(() => {
     if (loading || !data) return;
-    if (window.location.hash === '#verification') {
-      document.getElementById('verification')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const hash = window.location.hash.replace('#', '');
+    if (hash === 'verification' || hash === 'social') {
+      document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [loading, data]);
 
@@ -254,6 +262,16 @@ export default function Settings() {
       <div className="mb-8">
         <h1 className="font-mono text-2xl font-bold text-slate-100">Settings</h1>
         <p className="mt-2 text-sm text-slate-400">Manage your account, security, and preferences.</p>
+        <nav className="mt-4 flex flex-wrap gap-2 text-xs" aria-label="Settings sections">
+          <a href="#social" className="rounded-md border border-slate-800 px-2.5 py-1 text-slate-400 hover:border-brand-500/40 hover:text-brand-300">
+            Online presence
+          </a>
+          {isCompany && (
+            <a href="#verification" className="rounded-md border border-slate-800 px-2.5 py-1 text-slate-400 hover:border-brand-500/40 hover:text-brand-300">
+              Verification
+            </a>
+          )}
+        </nav>
       </div>
 
       {msg && <p className="mb-4 rounded-lg border border-brand-500/30 bg-brand-500/10 px-4 py-3 text-sm text-brand-300">{msg}</p>}
@@ -278,7 +296,22 @@ export default function Settings() {
           <Link to="/profile/edit" className="btn-secondary inline-block text-xs">
             Edit public profile
           </Link>
+          <Link to="/settings#social" className="btn-secondary ml-2 inline-block text-xs">
+            Manage social links
+          </Link>
         </SettingsSection>
+
+        <SocialPresenceSettings
+          isCompany={isCompany}
+          initial={{
+            githubUrl: data.githubUrl,
+            portfolioUrl: data.portfolioUrl,
+            designLinks: data.designLinks,
+            socialLinks: data.socialLinks,
+          }}
+          onMessage={setMsg}
+          onError={setError}
+        />
 
         <SettingsSection title="Security">
           {googleEnabled && (

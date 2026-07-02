@@ -9,7 +9,9 @@ import {
   type PrimaryDiscipline,
   type DesignLinks,
 } from '@/shared/constants/disciplines';
-import { canApplyForVerification } from '@/shared/constants/verification';
+import { canApplyForVerification, hasVerificationUnderReview } from '@/shared/constants/verification';
+import { ProfileSocialLinks } from '@/shared/components/ProfileSocialLinks';
+import type { SocialLinks } from '@/shared/api/types';
 
 type Profile = {
   id: string;
@@ -20,6 +22,7 @@ type Profile = {
   rank: string;
   primaryDiscipline?: PrimaryDiscipline;
   designLinks?: DesignLinks | null;
+  socialLinks?: SocialLinks | null;
   isBanned?: boolean;
   banReason?: string | null;
   accountType?: 'DEVELOPER' | 'COMPANY';
@@ -139,7 +142,7 @@ export default function Profile() {
         </span>
       );
     }
-    if (verification === 'PENDING') {
+    if (hasVerificationUnderReview(verification, profile?.company?.verificationRequestedAt)) {
       return (
         <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-xs text-amber-400">
           <svg className="h-3 w-3" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
@@ -149,7 +152,7 @@ export default function Profile() {
         </span>
       );
     }
-    if (verification === 'UNVERIFIED' || (verification === 'PENDING' && !profile?.company?.verificationRequestedAt)) {
+    if (canApplyForVerification(verification, profile?.company?.verificationRequestedAt)) {
       return isOwn ? (
         <Link
           to="/settings#verification"
@@ -158,6 +161,9 @@ export default function Profile() {
           Request verification →
         </Link>
       ) : null;
+    }
+    if (verification === 'PENDING') {
+      return null;
     }
     if (verification === 'REJECTED') {
       return (
@@ -240,33 +246,13 @@ export default function Profile() {
                 <Link to="/profile/edit" className="text-brand-400 hover:underline">Add one</Link>
               </p>
             ) : null}
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
-              {profile.githubUrl && (
-                <a href={profile.githubUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-400 hover:underline">
-                  GitHub →
-                </a>
-              )}
-              {profile.portfolioUrl && (
-                <a href={profile.portfolioUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-400 hover:underline">
-                  Portfolio →
-                </a>
-              )}
-              {profile.designLinks?.figma && (
-                <a href={profile.designLinks.figma} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-400 hover:underline">
-                  Figma →
-                </a>
-              )}
-              {profile.designLinks?.behance && (
-                <a href={profile.designLinks.behance} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-400 hover:underline">
-                  Behance →
-                </a>
-              )}
-              {profile.designLinks?.dribbble && (
-                <a href={profile.designLinks.dribbble} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-400 hover:underline">
-                  Dribbble →
-                </a>
-              )}
-            </div>
+            <ProfileSocialLinks
+              githubUrl={profile.githubUrl}
+              portfolioUrl={profile.portfolioUrl}
+              designLinks={profile.designLinks}
+              socialLinks={profile.socialLinks}
+              isCompany={isCompany}
+            />
           </div>
           <div className="flex flex-col gap-2 sm:items-end">
             {isOwn && (

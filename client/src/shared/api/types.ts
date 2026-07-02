@@ -6,6 +6,20 @@ export type DesignLinks = {
   dribbble?: string;
 };
 
+export type SocialLinks = {
+  linkedin?: string;
+  twitter?: string;
+  instagram?: string;
+  youtube?: string;
+  facebook?: string;
+  tiktok?: string;
+  threads?: string;
+  bluesky?: string;
+  mastodon?: string;
+  discord?: string;
+  telegram?: string;
+};
+
 export type User = {
   id: string;
   email?: string;
@@ -17,6 +31,7 @@ export type User = {
   accountType?: 'DEVELOPER' | 'COMPANY';
   primaryDiscipline?: PrimaryDiscipline;
   designLinks?: DesignLinks | null;
+  socialLinks?: SocialLinks | null;
   hasPassword?: boolean;
   googleLinked?: boolean;
   company?: {
