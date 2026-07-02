@@ -1,16 +1,15 @@
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma.js';
 import { resolveActiveBan, banStatusPayload } from '../lib/banHelpers.js';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
+import { getJwtSecret } from '../config/index.js';
 
 export function signToken(payload) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
 }
 
 export function verifyToken(token) {
   try {
-    return jwt.verify(token, JWT_SECRET);
+    return jwt.verify(token, getJwtSecret());
   } catch {
     return null;
   }

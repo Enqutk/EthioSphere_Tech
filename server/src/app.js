@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { getCorsOrigin } from './config/index.js';
+import { getCorsOrigin, validateProductionConfig } from './config/index.js';
 import { authRouter } from './routes/auth.js';
 import { usersRouter } from './routes/users.js';
 import { projectsRouter } from './routes/projects.js';
@@ -17,6 +17,8 @@ import { adminRouter } from './routes/admin.js';
  * Build the Express application (routes, middleware). Separated from listen() for clarity and tests.
  */
 export function createApp() {
+  validateProductionConfig();
+
   const app = express();
 
   if (process.env.VERCEL) {
