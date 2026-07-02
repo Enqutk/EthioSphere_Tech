@@ -3,6 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "description": "Unified platform for programmers to learn, build, compete, and collaborate",
+  "license": "MIT",
+  "author": "Enqutk",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Enqutk/EthioSphere_Tech.git"
+  },
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "npm run dev --prefix server",
@@ -10,7 +16,8 @@
     "build": "npm run build --prefix server && npm run build --prefix client",
     "db:generate": "npm run db:generate --prefix server",
     "db:push": "npm run db:push --prefix server",
-    "db:studio": "npm run db:studio --prefix server"
+    "db:studio": "npm run db:studio --prefix server",
+    "lint": "npm run lint --prefix client"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

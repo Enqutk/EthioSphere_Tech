@@ -1,19 +1,55 @@
 # 🌍 Programmers World
 
-
 A unified platform for programmers to **learn**, **build**, **compete**, and **collaborate**. Built for students and early-career developers, scalable for professionals and companies.
 
-## What's included (MVP)
+## Features
 
+### Authentication & accounts
+- Email/password register and login (JWT)
+- **Google OAuth** — sign in or link Google from Settings (requires server env vars)
+- **Settings** — account, password, notifications, social links, company profile
+- Register collects date of birth and gender; company accounts start unverified
 
-- **User authentication** — Register, login, JWT
-- 
-- **Developer profiles** — Username, bio, skills, rank, projects, badges; optional **hosted portfolio URL** (your own static site on GitHub Pages, Vercel, etc.) linked from the profile
-- 
-- **Project playground** — Create projects, join with a role (frontend/backend/UI/UX/fullstack), browse and search
-- **Community** — Sections (General, Debug help, Project feedback, etc.), posts, threaded comments, mark solution
-- **Coding challenges** — Submit solutions (e.g. GitHub links); optional **submission close** time hides others’ entries until the deadline, then shows a **public timeline** in submission order. Challenges without a close time use a classic leaderboard.
-- **Admin** — Seeded `isAdmin` users get `/admin`: create/delete challenges, delete community posts, delete non-admin users (API: `/api/admin/*`)
+### Profiles & social
+- Developer profiles — username, bio, skills, rank, badges, portfolio URL, GitHub link
+- **Brand & social links** — LinkedIn, X, Instagram, YouTube, and more
+- **Follow** requests (accept/reject) and **direct messages**
+- **Find buddies** — discover developers by discipline and rank
+- **Report profile** flow; admins review reports in `/admin`
+
+### Company accounts
+- Company registration and profile pages
+- **Verification badge** — apply in Settings; admins approve in `/admin`
+- Company likes and public company profiles
+
+### Project playground
+- Create projects from a **public GitHub repo** (live README, languages, contributors)
+- Join with a role (UI/UX, frontend, backend, DevOps, PM, etc.)
+- Visibility: public, followers-only, or private
+- Likes, view counts, and **pulse score** ranking
+- Paginated list (`?take=` / `?skip=`)
+
+### Community
+- Sections (General, Debug help, Project feedback, Announcements, React, Node, Python, …)
+- Posts with up/down votes, comments, mark solution
+- Link posts to playground projects or standalone GitHub repos
+- Paginated list (`?take=` / `?skip=`)
+
+### Coding challenges
+- Create challenges (admins and eligible users)
+- Submit solutions (URL, repo, notes); optional **submission close** time
+- After close: public timeline in submission order; otherwise classic leaderboard
+- Submission likes and comments
+
+### Admin & moderation
+- **`/admin` dashboard** — overview stats
+- Ban users (with optional expiry and reason); **ban appeals** reviewed by admins
+- Delete community posts, non-admin users, and challenges
+- **Company verification** queue
+- **User reports** queue
+
+### Legal
+- Privacy and Terms pages
 
 ## Tech stack
 
@@ -21,8 +57,9 @@ A unified platform for programmers to **learn**, **build**, **compete**, and **c
 |-----------|----------------------|
 | Frontend  | Vite, React, React Router, Tailwind CSS |
 | Backend   | Node.js, Express     |
-| Database  | PostgreSQL + Prisma |
-| Auth      | JWT, bcrypt          |
+| Database  | PostgreSQL + Prisma (Neon in production) |
+| Auth      | JWT, bcrypt, Google OAuth |
+| External  | GitHub REST API (public repo data) |
 
 ## Repository layout
 
@@ -141,6 +178,13 @@ npm run dev
 
 (requires `concurrently` installed at root.)
 
+### 6. Lint (client)
+
+```bash
+cd client
+npm run lint
+```
+
 ## Project structure
 
 ```
@@ -173,17 +217,18 @@ Programrs_world/
 |--------|------|-------------|
 | POST   | `/api/auth/register` | Register |
 | POST   | `/api/auth/login`     | Login |
+| GET    | `/api/auth/google`   | Start Google OAuth (when configured) |
 | GET    | `/api/users/me`      | Current user (auth) |
 | GET    | `/api/users/:username` | Public profile |
 | PATCH  | `/api/users/me`      | Update profile (auth) |
-| GET    | `/api/projects`      | List projects (query: status, type, search) |
+| GET    | `/api/projects`      | List projects (`status`, `type`, `search`, `take`, `skip`) |
 | GET    | `/api/projects/:id`  | Project detail |
 | POST   | `/api/projects`      | Create project (auth) |
 | POST   | `/api/projects/:id/join` | Join project (auth) |
 | GET    | `/api/challenges`    | List challenges |
 | GET    | `/api/challenges/:id` | Challenge detail |
 | POST   | `/api/challenges/:id/submit` | Submit solution (auth) |
-| GET    | `/api/posts`         | List posts (query: section, search) |
+| GET    | `/api/posts`         | List posts (`section`, `search`, `take`, `skip`) |
 | GET    | `/api/posts/:id`     | Post + comments |
 | POST   | `/api/posts`         | Create post (auth) |
 | POST   | `/api/posts/:id/comments` | Add comment (auth) |
@@ -193,15 +238,27 @@ Protected routes require header: `Authorization: Bearer <token>`.
 ## Security (implemented)
 
 - Password hashing (bcrypt)
-- JWT with expiry
+- JWT with expiry; production boot fails if `JWT_SECRET` or `CLIENT_ORIGIN` is missing
 - Rate limiting on `/api/`
 - Input validation (express-validator)
-- CORS configured for client origin
+- CORS restricted to `CLIENT_ORIGIN` in production
+- GitHub API token required in production (`GITHUB_TOKEN`) for sustainable rate limits
 
 ## Roadmap
 
-- **Phase 2:** Learning paths (missions/tasks), events & hackathons, leaderboard, Socket.io chat
-- **Phase 3:** GitHub OAuth, mobile, hiring/recruiter features
+- **Learning paths** — missions, tasks, structured curricula
+- **Events & hackathons** — scheduled competitions beyond coding challenges
+- **Real-time chat** — Socket.io or similar (DMs are REST today)
+- **Mobile apps**
+- **Hiring / recruiter** features
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md). Commit messages use [Conventional Commits](https://www.conventionalcommits.org/).
+
+## License
+
+[MIT](./LICENSE) — Copyright (c) 2026 Enqutk
 
 ## Troubleshooting
 
