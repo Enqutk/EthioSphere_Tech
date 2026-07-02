@@ -67,11 +67,14 @@ export default function Home() {
     const token = getStoredToken();
     let cancelled = false;
     setFeedLoading(true);
-    Promise.all([postsApi.list(undefined, token), projectsApi.list(undefined, token)])
-      .then(([posts, projects]) => {
+    Promise.all([
+      postsApi.list({ take: PREVIEW_COUNT }, token),
+      projectsApi.list({ take: PREVIEW_COUNT }, token),
+    ])
+      .then(([postsPage, projectsPage]) => {
         if (cancelled) return;
-        setRecentPosts((posts as HomePost[]).slice(0, PREVIEW_COUNT));
-        setRecentProjects((projects as HomeProject[]).slice(0, PREVIEW_COUNT));
+        setRecentPosts(postsPage.items as HomePost[]);
+        setRecentProjects(projectsPage.items as HomeProject[]);
       })
       .catch(() => {
         if (!cancelled) {

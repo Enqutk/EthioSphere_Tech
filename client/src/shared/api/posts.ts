@@ -1,4 +1,5 @@
 import { api } from './http';
+import { listQueryString, type ListQueryParams, type PaginatedResponse } from './pagination';
 
 export type PostVoteResult = {
   upvotes: number;
@@ -7,10 +8,15 @@ export type PostVoteResult = {
   viewerVote: 'up' | 'down';
 };
 
+export type PostListParams = ListQueryParams & {
+  section?: string;
+  search?: string;
+};
+
 export const postsApi = {
-  list: (params?: { section?: string; search?: string }, token?: string | null) => {
-    const q = new URLSearchParams(params as Record<string, string>).toString();
-    return api<unknown[]>(`/api/posts${q ? `?${q}` : ''}`, token ? { token } : {});
+  list: (params?: PostListParams, token?: string | null) => {
+    const q = listQueryString(params);
+    return api<PaginatedResponse<unknown>>(`/api/posts${q}`, token ? { token } : {});
   },
   get: (id: string, token?: string | null) =>
     api<Record<string, unknown>>(`/api/posts/${id}`, token ? { token } : {}),

@@ -29,15 +29,37 @@ const SECTIONS: Record<string, string> = {
 export default function Community() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextSkip, setNextSkip] = useState<number | null>(null);
   const [section, setSection] = useState('');
 
   useEffect(() => {
     const token = getStoredToken();
+    setLoading(true);
     postsApi
       .list(section ? { section } : undefined, token)
-      .then((data) => setPosts(data as Post[]))
+      .then((page) => {
+        setPosts(page.items as Post[]);
+        setHasMore(page.pagination.hasMore);
+        setNextSkip(page.pagination.nextSkip);
+      })
       .finally(() => setLoading(false));
   }, [section]);
+
+  const loadMore = () => {
+    if (loadingMore || !hasMore || nextSkip == null) return;
+    const token = getStoredToken();
+    setLoadingMore(true);
+    postsApi
+      .list({ ...(section ? { section } : {}), skip: nextSkip }, token)
+      .then((page) => {
+        setPosts((prev) => [...prev, ...(page.items as Post[])]);
+        setHasMore(page.pagination.hasMore);
+        setNextSkip(page.pagination.nextSkip);
+      })
+      .finally(() => setLoadingMore(false));
+  };
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-12">
@@ -101,6 +123,13 @@ export default function Community() {
             </li>
           ))}
         </ul>
+      )}
+      {!loading && hasMore && (
+        <div className="mt-8 text-center">
+          <button type="button" onClick={loadMore} disabled={loadingMore} className="btn-secondary text-sm">
+            {loadingMore ? 'Loading…' : 'Load more posts'}
+          </button>
+        </div>
       )}
     </div>
   );

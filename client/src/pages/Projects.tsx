@@ -32,15 +32,37 @@ const TYPE: Record<string, string> = { OPEN_SOURCE: 'Open source', HACKATHON: 'H
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextSkip, setNextSkip] = useState<number | null>(null);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
     const token = getStoredToken();
+    setLoading(true);
     projectsApi
       .list(search ? { search } : undefined, token)
-      .then((data) => setProjects(data as Project[]))
+      .then((page) => {
+        setProjects(page.items as Project[]);
+        setHasMore(page.pagination.hasMore);
+        setNextSkip(page.pagination.nextSkip);
+      })
       .finally(() => setLoading(false));
   }, [search]);
+
+  const loadMore = () => {
+    if (loadingMore || !hasMore || nextSkip == null) return;
+    const token = getStoredToken();
+    setLoadingMore(true);
+    projectsApi
+      .list({ ...(search ? { search } : {}), skip: nextSkip }, token)
+      .then((page) => {
+        setProjects((prev) => [...prev, ...(page.items as Project[])]);
+        setHasMore(page.pagination.hasMore);
+        setNextSkip(page.pagination.nextSkip);
+      })
+      .finally(() => setLoadingMore(false));
+  };
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-12">
@@ -101,6 +123,13 @@ export default function Projects() {
             </li>
           ))}
         </ul>
+      )}
+      {!loading && hasMore && (
+        <div className="mt-8 text-center">
+          <button type="button" onClick={loadMore} disabled={loadingMore} className="btn-secondary text-sm">
+            {loadingMore ? 'Loading…' : 'Load more projects'}
+          </button>
+        </div>
       )}
     </div>
   );

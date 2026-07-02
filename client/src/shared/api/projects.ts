@@ -1,9 +1,16 @@
 import { api, apiWithResponse } from './http';
+import { listQueryString, type ListQueryParams, type PaginatedResponse } from './pagination';
+
+export type ProjectListParams = ListQueryParams & {
+  status?: string;
+  type?: string;
+  search?: string;
+};
 
 export const projectsApi = {
-  list: (params?: { status?: string; type?: string; search?: string }, token?: string | null) => {
-    const q = new URLSearchParams(params as Record<string, string>).toString();
-    return api<unknown[]>(`/api/projects${q ? `?${q}` : ''}`, token ? { token } : {});
+  list: (params?: ProjectListParams, token?: string | null) => {
+    const q = listQueryString(params);
+    return api<PaginatedResponse<unknown>>(`/api/projects${q}`, token ? { token } : {});
   },
   get: (id: string, token?: string | null) =>
     api<Record<string, unknown>>(`/api/projects/${id}`, token ? { token } : {}),

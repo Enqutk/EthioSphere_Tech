@@ -37,7 +37,7 @@ export default function CommunityNew() {
     if (!token) return;
     projectsApi
       .list(undefined, token)
-      .then((data) => setPlaygroundProjects(data as PlaygroundProject[]))
+      .then((page) => setPlaygroundProjects(page.items as PlaygroundProject[]))
       .catch(() => setPlaygroundProjects([]));
   }, []);
 
