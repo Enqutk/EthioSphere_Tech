@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
 import { sendRouteError } from '../lib/dbErrors.js';
@@ -7,8 +8,163 @@ import { signToken } from '../middleware/auth.js';
 import { parseGithubUserLogin, fetchGithubUser, inferRankFromGithub } from '../lib/githubPublic.js';
 import { resolveActiveBan, banStatusPayload } from '../lib/banHelpers.js';
 import { parsePrimaryDiscipline } from '../lib/disciplines.js';
+import { getClientOrigin } from '../config/index.js';
+import {
+  isGoogleOAuthConfigured,
+  buildGoogleAuthUrl,
+  createOAuthState,
+  exchangeGoogleCode,
+  fetchGoogleUserInfo,
+  suggestUniqueUsername,
+} from '../lib/googleOAuth.js';
 
 export const authRouter = Router();
+
+function signedOAuthState(extra = {}) {
+  const payload = { ts: Date.now(), nonce: createOAuthState(), ...extra };
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig = crypto.createHmac('sha256', process.env.JWT_SECRET || 'dev').update(body).digest('base64url');
+  return `${body}.${sig}`;
+}
+
+function verifySignedOAuthState(state) {
+  if (!state || typeof state !== 'string') return null;
+  const dot = state.lastIndexOf('.');
+  if (dot <= 0) return null;
+  const body = state.slice(0, dot);
+  const sig = state.slice(dot + 1);
+  const expected = crypto.createHmac('sha256', process.env.JWT_SECRET || 'dev').update(body).digest('base64url');
+  if (sig !== expected) return null;
+  try {
+    const data = JSON.parse(Buffer.from(body, 'base64url').toString());
+    if (!data.ts || Date.now() - data.ts > 15 * 60 * 1000) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function authUserSelect() {
+  return {
+    id: true,
+    email: true,
+    username: true,
+    name: true,
+    rank: true,
+    avatarUrl: true,
+    githubUrl: true,
+    isAdmin: true,
+    accountType: true,
+    primaryDiscipline: true,
+    googleId: true,
+    passwordHash: true,
+    company: {
+      select: {
+        id: true,
+        legalName: true,
+        website: true,
+        verificationStatus: true,
+      },
+    },
+  };
+}
+
+function publicAuthUser(user) {
+  const { passwordHash, googleId, ...rest } = user;
+  return {
+    ...rest,
+    hasPassword: Boolean(passwordHash),
+    googleLinked: Boolean(googleId),
+  };
+}
+
+authRouter.get('/google', (req, res) => {
+  if (!isGoogleOAuthConfigured()) {
+    return res.status(503).json({ error: 'Google sign-in is not configured on this server.' });
+  }
+  const state = signedOAuthState({ from: typeof req.query.from === 'string' ? req.query.from.slice(0, 200) : '/' });
+  res.redirect(buildGoogleAuthUrl(state));
+});
+
+authRouter.get('/google/callback', async (req, res) => {
+  const clientOrigin = getClientOrigin();
+  const fail = (message) => {
+    res.redirect(`${clientOrigin}/auth/callback?error=${encodeURIComponent(message)}`);
+  };
+
+  try {
+    if (!isGoogleOAuthConfigured()) return fail('Google sign-in is not configured.');
+    const { code, state, error } = req.query;
+    if (error) return fail(String(error));
+    if (!code || typeof code !== 'string') return fail('Missing authorization code.');
+    if (!state || typeof state !== 'string') return fail('Invalid sign-in state.');
+    const stateData = verifySignedOAuthState(state);
+    if (!stateData) return fail('Invalid or expired sign-in session.');
+
+    const tokens = await exchangeGoogleCode(code);
+    const profile = await fetchGoogleUserInfo(tokens.access_token);
+    const email = String(profile.email).toLowerCase();
+    const googleId = String(profile.id);
+
+    let user = await prisma.user.findFirst({
+      where: { OR: [{ googleId }, { email }] },
+      select: {
+        ...authUserSelect(),
+        isBanned: true,
+        bannedAt: true,
+        banExpiresAt: true,
+        banReason: true,
+      },
+    });
+
+    if (user && !user.googleId) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { googleId, avatarUrl: user.avatarUrl || profile.picture || null },
+        select: { ...authUserSelect(), isBanned: true, bannedAt: true, banExpiresAt: true, banReason: true },
+      });
+    }
+
+    if (!user) {
+      const username = await suggestUniqueUsername(prisma, email, profile.name);
+      user = await prisma.user.create({
+        data: {
+          email,
+          googleId,
+          name: (profile.name || username).slice(0, 80),
+          username,
+          avatarUrl: profile.picture || null,
+          accountType: 'DEVELOPER',
+          primaryDiscipline: 'DEVELOPER',
+          termsAcceptedAt: new Date(),
+        },
+        select: { ...authUserSelect(), isBanned: true, bannedAt: true, banExpiresAt: true, banReason: true },
+      });
+    }
+
+    const pendingAppeal = await prisma.banAppeal.findFirst({
+      where: { userId: user.id, status: 'PENDING' },
+      select: { status: true },
+    });
+    const { user: activeUser, banned } = await resolveActiveBan({ ...user, pendingAppeal });
+    if (banned) {
+      const payload = banStatusPayload({ ...activeUser, pendingAppeal });
+      return fail(String(payload.error || 'Account suspended'));
+    }
+
+    const token = signToken({ userId: activeUser.id });
+    const redirectTo =
+      typeof stateData.from === 'string' && stateData.from.startsWith('/') ? stateData.from : '/';
+    res.redirect(`${clientOrigin}/auth/callback?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent(redirectTo)}`);
+  } catch (err) {
+    console.error('GET /api/auth/google/callback', err);
+    fail(err.message || 'Google sign-in failed');
+  }
+});
+
+authRouter.get('/google/status', (req, res) => {
+  res.json({ enabled: isGoogleOAuthConfigured() });
+});
 
 authRouter.post(
   '/register',
@@ -100,7 +256,6 @@ authRouter.post(
                     legalName: name.trim(),
                     website: companyWebsite,
                     description: companyDescription || null,
-                    verificationStatus: 'PENDING',
                   },
                 },
               }
@@ -128,7 +283,11 @@ authRouter.post(
         },
       });
       const token = signToken({ userId: user.id });
-      res.status(201).json({ user, token, ...(githubNote && { githubNote }) });
+      res.status(201).json({
+        user: { ...user, hasPassword: true, googleLinked: false },
+        token,
+        ...(githubNote && { githubNote }),
+      });
     } catch (err) {
       sendRouteError(res, err, 'POST /api/auth/register', 'Registration failed');
     }
@@ -193,19 +352,7 @@ authRouter.post(
 
       const token = signToken({ userId: activeUser.id });
       res.json({
-        user: {
-          id: activeUser.id,
-          email: activeUser.email,
-          username: activeUser.username,
-          name: activeUser.name,
-          rank: activeUser.rank,
-          avatarUrl: activeUser.avatarUrl,
-          githubUrl: activeUser.githubUrl,
-          isAdmin: activeUser.isAdmin,
-          accountType: activeUser.accountType,
-          primaryDiscipline: activeUser.primaryDiscipline,
-          company: activeUser.company,
-        },
+        user: publicAuthUser(activeUser),
         token,
       });
     } catch (err) {

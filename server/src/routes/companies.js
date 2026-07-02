@@ -19,6 +19,132 @@ async function findCompanyByUsername(username) {
   return { user, company: user.company };
 }
 
+companiesRouter.get('/me', requireAuth, async (req, res) => {
+  try {
+    if (req.user.accountType !== 'COMPANY') {
+      return res.status(403).json({ error: 'Company account required.' });
+    }
+    const company = await prisma.company.findUnique({
+      where: { userId: req.user.id },
+      select: {
+        id: true,
+        legalName: true,
+        website: true,
+        description: true,
+        verificationStatus: true,
+        verificationNote: true,
+        verificationRequestedAt: true,
+        verifiedAt: true,
+      },
+    });
+    if (!company) return res.status(404).json({ error: 'Company profile not found.' });
+    res.json(company);
+  } catch (err) {
+    sendRouteError(res, err, 'GET /api/companies/me', 'Could not load company');
+  }
+});
+
+companiesRouter.patch(
+  '/me',
+  requireAuth,
+  [
+    body('legalName').optional().isString().trim().isLength({ min: 2, max: 120 }),
+    body('website').optional().isURL({ require_protocol: true }),
+    body('description').optional({ values: 'falsy' }).isString().trim().isLength({ max: 2000 }),
+  ],
+  async (req, res) => {
+    try {
+      if (req.user.accountType !== 'COMPANY') {
+        return res.status(403).json({ error: 'Company account required.' });
+      }
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+      const data = {};
+      if (req.body.legalName !== undefined) data.legalName = req.body.legalName.trim();
+      if (req.body.website !== undefined) data.website = req.body.website.trim();
+      if (req.body.description !== undefined) {
+        data.description = req.body.description ? String(req.body.description).trim() : null;
+      }
+      if (Object.keys(data).length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update.' });
+      }
+
+      const company = await prisma.company.update({
+        where: { userId: req.user.id },
+        data,
+        select: {
+          id: true,
+          legalName: true,
+          website: true,
+          description: true,
+          verificationStatus: true,
+          verificationNote: true,
+          verificationRequestedAt: true,
+          verifiedAt: true,
+        },
+      });
+      if (data.legalName) {
+        await prisma.user.update({ where: { id: req.user.id }, data: { name: data.legalName } });
+      }
+      res.json(company);
+    } catch (err) {
+      sendRouteError(res, err, 'PATCH /api/companies/me', 'Could not update company');
+    }
+  },
+);
+
+companiesRouter.post(
+  '/me/apply-verification',
+  requireAuth,
+  [body('message').optional().isString().trim().isLength({ max: 1000 })],
+  async (req, res) => {
+    try {
+      if (req.user.accountType !== 'COMPANY') {
+        return res.status(403).json({ error: 'Company account required.' });
+      }
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+      const company = await prisma.company.findUnique({ where: { userId: req.user.id } });
+      if (!company) return res.status(404).json({ error: 'Company profile not found.' });
+
+      if (company.verificationStatus === 'VERIFIED') {
+        return res.status(400).json({ error: 'Your company is already verified.' });
+      }
+      if (company.verificationStatus === 'PENDING') {
+        return res.status(409).json({ error: 'A verification request is already under review.' });
+      }
+
+      const message = typeof req.body.message === 'string' ? req.body.message.trim() : '';
+      const updated = await prisma.company.update({
+        where: { id: company.id },
+        data: {
+          verificationStatus: 'PENDING',
+          verificationRequestedAt: new Date(),
+          verificationNote: message || null,
+        },
+        select: {
+          id: true,
+          legalName: true,
+          website: true,
+          description: true,
+          verificationStatus: true,
+          verificationNote: true,
+          verificationRequestedAt: true,
+          verifiedAt: true,
+        },
+      });
+      res.json({
+        company: updated,
+        message: 'Verification request submitted. Our team will review your company profile.',
+      });
+    } catch (err) {
+      sendRouteError(res, err, 'POST /api/companies/me/apply-verification', 'Could not submit verification');
+    }
+  },
+);
+
 companiesRouter.get('/:username', optionalAuth, async (req, res) => {
   try {
     const found = await findCompanyByUsername(req.params.username);

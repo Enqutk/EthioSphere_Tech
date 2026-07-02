@@ -1,6 +1,8 @@
 import { prisma } from '../lib/prisma.js';
 import { ownedProjectsVisibleWhere } from '../lib/projectAccess.js';
 import { parsePrimaryDiscipline, normalizeDesignLinks } from '../lib/disciplines.js';
+import bcrypt from 'bcryptjs';
+import { normalizeNotificationPrefs } from '../lib/notificationPrefs.js';
 
 export function normalizeProfileSections(input) {
   if (!Array.isArray(input)) return [];
@@ -17,7 +19,7 @@ export function normalizeProfileSections(input) {
 }
 
 export async function getCurrentUserProfile(userId) {
-  return prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
       id: true,
@@ -35,6 +37,9 @@ export async function getCurrentUserProfile(userId) {
       accountType: true,
       primaryDiscipline: true,
       designLinks: true,
+      notificationPrefs: true,
+      googleId: true,
+      passwordHash: true,
       company: {
         select: {
           id: true,
@@ -42,6 +47,8 @@ export async function getCurrentUserProfile(userId) {
           website: true,
           description: true,
           verificationStatus: true,
+          verificationNote: true,
+          verificationRequestedAt: true,
           verifiedAt: true,
           _count: { select: { likes: true, reviews: true } },
         },
@@ -49,6 +56,14 @@ export async function getCurrentUserProfile(userId) {
       createdAt: true,
     },
   });
+  if (!user) return null;
+  const { passwordHash, googleId, notificationPrefs, ...rest } = user;
+  return {
+    ...rest,
+    hasPassword: Boolean(passwordHash),
+    googleLinked: Boolean(googleId),
+    notificationPrefs: normalizeNotificationPrefs(notificationPrefs),
+  };
 }
 
 export async function discoverUsers({ q, skill, discipline, viewerId, take }) {
@@ -229,4 +244,52 @@ export async function updateCurrentUserProfile(userId, payload) {
       designLinks: true,
     },
   });
+}
+
+export async function updateUserSettings(userId, { notificationPrefs }) {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { notificationPrefs: normalizeNotificationPrefs(notificationPrefs) },
+    select: {
+      id: true,
+      email: true,
+      notificationPrefs: true,
+      googleId: true,
+      passwordHash: true,
+    },
+  });
+  return {
+    id: user.id,
+    email: user.email,
+    hasPassword: Boolean(user.passwordHash),
+    googleLinked: Boolean(user.googleId),
+    notificationPrefs: normalizeNotificationPrefs(user.notificationPrefs),
+  };
+}
+
+export async function changeUserPassword(userId, { currentPassword, newPassword }) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { passwordHash: true },
+  });
+  if (!user) {
+    const err = new Error('User not found');
+    err.status = 404;
+    throw err;
+  }
+  if (user.passwordHash) {
+    if (!currentPassword) {
+      const err = new Error('Current password is required.');
+      err.status = 400;
+      throw err;
+    }
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) {
+      const err = new Error('Current password is incorrect.');
+      err.status = 401;
+      throw err;
+    }
+  }
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
 }

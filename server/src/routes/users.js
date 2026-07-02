@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { body, validationResult } from 'express-validator';
 import { sendRouteError } from '../lib/dbErrors.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
@@ -8,8 +9,11 @@ import {
   discoverUsers,
   getPublicProfileByUsername,
   updateCurrentUserProfile,
+  updateUserSettings,
+  changeUserPassword,
 } from '../services/usersService.js';
 import { parsePrimaryDiscipline, normalizeDesignLinks, DISCIPLINE_LABELS } from '../lib/disciplines.js';
+import { normalizeNotificationPrefs } from '../lib/notificationPrefs.js';
 
 export const usersRouter = Router();
 
@@ -135,6 +139,52 @@ usersRouter.patch(
       res.json(user);
     } catch (err) {
       sendRouteError(res, err, 'PATCH /api/users/me', 'Could not update profile');
+    }
+  },
+);
+
+usersRouter.patch(
+  '/me/settings',
+  requireAuth,
+  [body('notificationPrefs').optional().isObject()],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+      if (req.body.notificationPrefs === undefined) {
+        return res.status(400).json({ error: 'No valid fields to update.' });
+      }
+
+      const notificationPrefs = normalizeNotificationPrefs(req.body.notificationPrefs);
+      const user = await updateUserSettings(req.user.id, { notificationPrefs });
+      res.json(user);
+    } catch (err) {
+      sendRouteError(res, err, 'PATCH /api/users/me/settings', 'Could not update settings');
+    }
+  },
+);
+
+usersRouter.patch(
+  '/me/password',
+  requireAuth,
+  [
+    body('currentPassword').optional().isString(),
+    body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters'),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+      const { currentPassword, newPassword } = req.body;
+      await changeUserPassword(req.user.id, { currentPassword, newPassword });
+      res.json({ ok: true, message: 'Password updated.' });
+    } catch (err) {
+      if (err.status === 400 || err.status === 401) {
+        return res.status(err.status).json({ error: err.message });
+      }
+      sendRouteError(res, err, 'PATCH /api/users/me/password', 'Could not update password');
     }
   },
 );

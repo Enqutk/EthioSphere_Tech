@@ -16,6 +16,8 @@ model User {
   id            String    @id @default(cuid())
   email         String    @unique
   passwordHash  String?   @map("password_hash") // null if OAuth-only
+  googleId      String?   @unique @map("google_id")
+  notificationPrefs Json? @map("notification_prefs")
   name          String
   username      String    @unique
   avatarUrl     String?   @map("avatar_url")
@@ -83,6 +85,7 @@ enum PrimaryDiscipline {
 }
 
 enum CompanyVerificationStatus {
+  UNVERIFIED
   PENDING
   VERIFIED
   REJECTED
@@ -128,8 +131,9 @@ model Company {
   legalName          String                    @map("legal_name")
   website            String
   description        String?                   @db.VarChar(2000)
-  verificationStatus CompanyVerificationStatus @default(PENDING) @map("verification_status")
+  verificationStatus CompanyVerificationStatus @default(UNVERIFIED) @map("verification_status")
   verificationNote   String?                   @map("verification_note") @db.VarChar(500)
+  verificationRequestedAt DateTime?            @map("verification_requested_at")
   verifiedAt         DateTime?                 @map("verified_at")
   createdAt          DateTime                  @default(now()) @map("created_at")
   updatedAt          DateTime                  @updatedAt @map("updated_at")
