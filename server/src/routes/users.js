@@ -14,6 +14,7 @@ import {
 } from '../services/usersService.js';
 import { parsePrimaryDiscipline, normalizeDesignLinks, DISCIPLINE_LABELS } from '../lib/disciplines.js';
 import { normalizeNotificationPrefs } from '../lib/notificationPrefs.js';
+import { normalizeSocialLinks } from '../lib/socialLinks.js';
 
 export const usersRouter = Router();
 
@@ -111,13 +112,14 @@ usersRouter.patch(
     body('profileSections.*.content').optional().isString().isLength({ min: 1, max: 4000 }),
     body('primaryDiscipline').optional().isString().trim(),
     body('designLinks').optional(),
+    body('socialLinks').optional(),
   ],
   async (req, res) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-      const { name, bio, githubUrl, portfolioUrl, skills, profileSections, primaryDiscipline, designLinks } = req.body;
+      const { name, bio, githubUrl, portfolioUrl, skills, profileSections, primaryDiscipline, designLinks, socialLinks } = req.body;
       const data = {};
       if (name !== undefined) data.name = name;
       if (bio !== undefined) data.bio = bio === '' ? null : bio;
@@ -130,6 +132,7 @@ usersRouter.patch(
       if (profileSections !== undefined) data.profileSections = normalizeProfileSections(profileSections);
       if (primaryDiscipline !== undefined) data.primaryDiscipline = parsePrimaryDiscipline(primaryDiscipline);
       if (designLinks !== undefined) data.designLinks = normalizeDesignLinks(designLinks);
+      if (socialLinks !== undefined) data.socialLinks = normalizeSocialLinks(socialLinks);
 
       if (Object.keys(data).length === 0) {
         return res.status(400).json({ error: 'No valid fields to update' });

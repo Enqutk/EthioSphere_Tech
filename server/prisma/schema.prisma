@@ -36,6 +36,7 @@ model User {
   accountType   AccountType @default(DEVELOPER) @map("account_type")
   primaryDiscipline PrimaryDiscipline @default(DEVELOPER) @map("primary_discipline")
   designLinks   Json?       @map("design_links")
+  socialLinks   Json?       @map("social_links")
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 

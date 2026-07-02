@@ -37,6 +37,7 @@ export async function getCurrentUserProfile(userId) {
       accountType: true,
       primaryDiscipline: true,
       designLinks: true,
+      socialLinks: true,
       notificationPrefs: true,
       googleId: true,
       passwordHash: true,
@@ -147,6 +148,7 @@ export async function getPublicProfileByUsername(username, viewerId) {
       accountType: true,
       primaryDiscipline: true,
       designLinks: true,
+      socialLinks: true,
       isBanned: true,
       banReason: true,
       company: {
@@ -242,6 +244,7 @@ export async function updateCurrentUserProfile(userId, payload) {
       isAdmin: true,
       primaryDiscipline: true,
       designLinks: true,
+      socialLinks: true,
     },
   });
 }
