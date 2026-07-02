@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { ApiStatusBanner } from '@/shared/components/ApiStatusBanner';
 import { AppFrame } from '@/shared/components/AppFrame';
 import { Nav } from '@/shared/components/Nav';
 import { Footer } from '@/shared/components/Footer';
@@ -37,6 +38,7 @@ export default function App() {
   return (
     <AppFrame>
       <Nav />
+      <ApiStatusBanner />
       <main className="min-h-[calc(100vh-4rem)]">
         <Suspense fallback={<RouteFallback />}>
           <Routes>

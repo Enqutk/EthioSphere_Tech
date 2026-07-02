@@ -4,6 +4,8 @@ import { projectsApi } from '@/shared/api';
 import { FollowCreatorActions } from '@/shared/components/FollowCreatorActions';
 import { PulseStrip } from '@/shared/components/PulseStrip';
 import { RolesNeededBadges } from '@/shared/components/RolesNeededPicker';
+import { ListFetchError } from '@/shared/components/ListFetchError';
+import { formatLoadError } from '@/shared/lib/loadError';
 
 type Project = {
   id: string;
@@ -36,9 +38,12 @@ export default function Projects() {
   const [hasMore, setHasMore] = useState(false);
   const [nextSkip, setNextSkip] = useState<number | null>(null);
   const [search, setSearch] = useState('');
+  const [error, setError] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     setLoading(true);
+    setError('');
     projectsApi
       .list(search ? { search } : undefined)
       .then((page) => {
@@ -46,8 +51,9 @@ export default function Projects() {
         setHasMore(page.pagination.hasMore);
         setNextSkip(page.pagination.nextSkip);
       })
+      .catch((err) => setError(formatLoadError(err)))
       .finally(() => setLoading(false));
-  }, [search]);
+  }, [search, retryCount]);
 
   const loadMore = () => {
     if (loadingMore || !hasMore || nextSkip == null) return;
@@ -76,6 +82,8 @@ export default function Projects() {
       </div>
       {loading ? (
         <div className="mt-12 text-center text-slate-400">Loading projects…</div>
+      ) : error ? (
+        <ListFetchError message={error} onRetry={() => setRetryCount((n) => n + 1)} />
       ) : projects.length === 0 ? (
         <div className="mt-12 rounded-xl border border-dashed border-slate-700 p-12 text-center text-slate-500">No projects yet. Be the first to create one.</div>
       ) : (
@@ -130,7 +138,7 @@ export default function Projects() {
           ))}
         </ul>
       )}
-      {!loading && hasMore && (
+      {!loading && !error && hasMore && (
         <div className="mt-8 text-center">
           <button type="button" onClick={loadMore} disabled={loadingMore} className="btn-secondary text-sm">
             {loadingMore ? 'Loading…' : 'Load more projects'}

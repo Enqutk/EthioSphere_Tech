@@ -168,7 +168,11 @@ export async function api<T>(
 
   if (!raw) return {} as T;
   if (parsed === undefined) {
-    throw new Error(`Invalid or non-JSON response from ${path}${ct ? ` (${ct})` : ''}`);
+    const looksLikeHtml = /^\s*<!DOCTYPE html|^\s*<html/i.test(raw);
+    const hint = looksLikeHtml
+      ? ' The server returned a web page instead of JSON — set VITE_API_BASE_URL to your API Vercel URL (not the frontend URL).'
+      : '';
+    throw new Error(`Invalid or non-JSON response from ${path}${ct ? ` (${ct})` : ''}.${hint}`);
   }
     const out = parsed as T;
     if (isGet && cacheMs > 0) writeGetCache(url, token, out, cacheMs);

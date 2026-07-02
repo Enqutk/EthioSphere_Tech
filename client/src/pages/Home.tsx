@@ -5,6 +5,8 @@ import { useAuth } from '@/shared/components/AuthProvider';
 import { usePageMeta } from '@/shared/hooks/usePageMeta';
 import { RolesNeededBadges } from '@/shared/components/RolesNeededPicker';
 import { SuggestedPeople } from '@/shared/components/SuggestedPeople';
+import { ListFetchError } from '@/shared/components/ListFetchError';
+import { formatLoadError } from '@/shared/lib/loadError';
 
 type Module = {
   code: string;
@@ -66,10 +68,13 @@ export default function Home() {
   const [recentPosts, setRecentPosts] = useState<HomePost[]>([]);
   const [recentProjects, setRecentProjects] = useState<HomeProject[]>([]);
   const [feedLoading, setFeedLoading] = useState(true);
+  const [feedError, setFeedError] = useState('');
+  const [feedRetry, setFeedRetry] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setFeedLoading(true);
+    setFeedError('');
     Promise.all([
       postsApi.list({ take: PREVIEW_COUNT }),
       projectsApi.list({ take: PREVIEW_COUNT }),
@@ -79,10 +84,11 @@ export default function Home() {
         setRecentPosts(postsPage.items as HomePost[]);
         setRecentProjects(projectsPage.items as HomeProject[]);
       })
-      .catch(() => {
+      .catch((err) => {
         if (!cancelled) {
           setRecentPosts([]);
           setRecentProjects([]);
+          setFeedError(formatLoadError(err));
         }
       })
       .finally(() => {
@@ -91,7 +97,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [feedRetry]);
 
   const modules: Module[] = [
     {
@@ -230,6 +236,8 @@ export default function Home() {
 
           {feedLoading ? (
             <p className="text-center text-sm text-slate-500">Loading latest activity…</p>
+          ) : feedError ? (
+            <ListFetchError message={feedError} onRetry={() => setFeedRetry((n) => n + 1)} />
           ) : (
             <div className="grid gap-8 lg:grid-cols-2">
               <div>

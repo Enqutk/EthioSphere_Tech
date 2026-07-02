@@ -1,7 +1,8 @@
 /**
  * Public API surface for the backend. Import from `@/shared/api` in app code.
  */
-export { api } from './http';
+export { api, ApiError, getApiBaseUrl } from './http';
+export { healthApi, apiDeploymentHint } from './health';
 export type { User, FollowForViewer, DiscoverUser } from './types';
 export { authApi } from './auth';
 export { usersApi } from './users';

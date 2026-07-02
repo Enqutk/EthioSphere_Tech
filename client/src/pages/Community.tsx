@@ -4,6 +4,8 @@ import { postsApi } from '@/shared/api';
 import { useAuth } from '@/shared/components/AuthProvider';
 import { FollowCreatorActions } from '@/shared/components/FollowCreatorActions';
 import { PulseStrip } from '@/shared/components/PulseStrip';
+import { ListFetchError } from '@/shared/components/ListFetchError';
+import { formatLoadError } from '@/shared/lib/loadError';
 
 type Post = {
   id: string;
@@ -35,9 +37,12 @@ export default function Community() {
   const [hasMore, setHasMore] = useState(false);
   const [nextSkip, setNextSkip] = useState<number | null>(null);
   const [section, setSection] = useState('');
+  const [error, setError] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     setLoading(true);
+    setError('');
     postsApi
       .list(section ? { section } : undefined)
       .then((page) => {
@@ -45,8 +50,9 @@ export default function Community() {
         setHasMore(page.pagination.hasMore);
         setNextSkip(page.pagination.nextSkip);
       })
+      .catch((err) => setError(formatLoadError(err)))
       .finally(() => setLoading(false));
-  }, [section]);
+  }, [section, retryCount]);
 
   const loadMore = () => {
     if (loadingMore || !hasMore || nextSkip == null) return;
@@ -90,6 +96,8 @@ export default function Community() {
       </div>
       {loading ? (
         <div className="mt-12 text-center text-slate-400">Loading posts…</div>
+      ) : error ? (
+        <ListFetchError message={error} onRetry={() => setRetryCount((n) => n + 1)} />
       ) : posts.length === 0 ? (
         <div className="mt-12 rounded-xl border border-dashed border-slate-700 p-12 text-center text-slate-500">No posts yet. Start a discussion.</div>
       ) : (
@@ -141,7 +149,7 @@ export default function Community() {
           ))}
         </ul>
       )}
-      {!loading && hasMore && (
+      {!loading && !error && hasMore && (
         <div className="mt-8 text-center">
           <button type="button" onClick={loadMore} disabled={loadingMore} className="btn-secondary text-sm">
             {loadingMore ? 'Loading…' : 'Load more posts'}

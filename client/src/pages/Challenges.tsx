@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { challengesApi, type ChallengeCreatedBy } from '@/shared/api/challenges';
 import { useAuth } from '@/shared/components/AuthProvider';
+import { ListFetchError } from '@/shared/components/ListFetchError';
+import { formatLoadError } from '@/shared/lib/loadError';
 
 type Challenge = {
   id: string;
@@ -23,9 +25,13 @@ export default function Challenges() {
   const [canCreate, setCanCreate] = useState(false);
   const [createHint, setCreateHint] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (!ready) return;
+    setLoading(true);
+    setError('');
     challengesApi
       .list()
       .then((data) => {
@@ -33,8 +39,9 @@ export default function Challenges() {
         setCanCreate(data.canCreateChallenge);
         setCreateHint(data.createRequirement);
       })
+      .catch((err) => setError(formatLoadError(err)))
       .finally(() => setLoading(false));
-  }, [ready]);
+  }, [ready, retryCount]);
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-12">
@@ -57,6 +64,8 @@ export default function Challenges() {
       </div>
       {loading ? (
         <div className="mt-12 text-center text-slate-400">Loading challenges…</div>
+      ) : error ? (
+        <ListFetchError message={error} onRetry={() => setRetryCount((n) => n + 1)} />
       ) : challenges.length === 0 ? (
         <div className="mt-12 rounded-xl border border-dashed border-slate-700 p-12 text-center text-slate-500">No challenges yet. Check back soon.</div>
       ) : (
