@@ -238,12 +238,9 @@ export default function Login() {
             />
           </div>
           <div>
-            <div className="flex items-center justify-between">
-              <label htmlFor="password" className="block text-sm font-medium text-slate-300">Password</label>
-              <Link to="/forgot-password" className="text-xs font-medium text-brand-400 hover:underline">
-                Forgot password?
-              </Link>
-            </div>
+            <label htmlFor="password" className="block text-sm font-medium text-slate-300">
+              Password
+            </label>
             <input
               id="password"
               name="password"
@@ -254,6 +251,11 @@ export default function Login() {
               className="input mt-1"
               required
             />
+            <p className="mt-2 text-right">
+              <Link to="/forgot-password" className="text-sm font-medium text-brand-400 hover:text-brand-300 hover:underline">
+                Forgot password?
+              </Link>
+            </p>
           </div>
           <button type="submit" className="btn-primary w-full" disabled={loading}>
             {loading ? 'Signing in…' : 'Sign in'}
