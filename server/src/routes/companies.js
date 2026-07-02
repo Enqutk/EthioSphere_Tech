@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
 import { sendRouteError } from '../lib/dbErrors.js';
+import { isUniqueConstraintError } from '../lib/prismaErrors.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
 
 export const companiesRouter = Router();
@@ -285,9 +286,17 @@ companiesRouter.post('/:username/like', requireAuth, async (req, res) => {
       const likeCount = await prisma.companyLike.count({ where: { companyId: found.company.id } });
       return res.json({ liked: false, likeCount });
     }
-    await prisma.companyLike.create({
-      data: { companyId: found.company.id, userId: req.user.id },
-    });
+    try {
+      await prisma.companyLike.create({
+        data: { companyId: found.company.id, userId: req.user.id },
+      });
+    } catch (err) {
+      if (isUniqueConstraintError(err)) {
+        const likeCount = await prisma.companyLike.count({ where: { companyId: found.company.id } });
+        return res.json({ liked: true, likeCount });
+      }
+      throw err;
+    }
     const likeCount = await prisma.companyLike.count({ where: { companyId: found.company.id } });
     res.json({ liked: true, likeCount });
   } catch (err) {

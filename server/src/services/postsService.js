@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { postPulseScore } from '../lib/pulseScore.js';
+import { recordUniqueContentView } from '../lib/contentViews.js';
 import { canViewProject, projectPayloadsForViewer } from '../lib/projectAccess.js';
 import { paginatedResult } from '../lib/pagination.js';
 
@@ -110,7 +111,7 @@ export async function listPostsForViewer({ section, search, viewerId, take = 50,
   return paginatedResult(items, { take, skip });
 }
 
-export async function getPostDetailForViewer(postId, viewerId) {
+export async function getPostDetailForViewer(postId, viewerId, viewerKey) {
   const post = await prisma.post.findUnique({
     where: { id: postId },
     include: {
@@ -125,8 +126,19 @@ export async function getPostDetailForViewer(postId, viewerId) {
   });
   if (!post) return null;
 
-  await prisma.post.update({ where: { id: post.id }, data: { viewCount: { increment: 1 } } });
-  const viewCount = post.viewCount + 1;
+  let viewCount = post.viewCount;
+  if (viewerKey) {
+    const isNewView = await recordUniqueContentView(prisma, {
+      entityType: 'POST',
+      entityId: post.id,
+      viewerKey,
+      userId: viewerId,
+    });
+    if (isNewView) {
+      await prisma.post.update({ where: { id: post.id }, data: { viewCount: { increment: 1 } } });
+      viewCount = post.viewCount + 1;
+    }
+  }
   const project = await projectPayloadForViewer(post.project, viewerId);
   const tallies = await postVoteTalliesForIds([post.id]);
   const t = tallies.get(post.id) || { up: 0, down: 0 };

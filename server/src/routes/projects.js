@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { sendRouteError } from '../lib/dbErrors.js';
 import { parseListPagination } from '../lib/pagination.js';
+import { viewerKeyFromRequest } from '../lib/viewerKey.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import {
   listProjectsForViewer,
@@ -34,7 +35,11 @@ projectsRouter.get('/', optionalAuth, async (req, res) => {
 
 projectsRouter.get('/:id', optionalAuth, async (req, res) => {
   try {
-    const out = await getProjectDetailForViewer(req.params.id, req.user?.id);
+    const out = await getProjectDetailForViewer(
+      req.params.id,
+      req.user?.id,
+      viewerKeyFromRequest(req, req.user?.id),
+    );
     if (out.notFound) return res.status(404).json({ error: 'Project not found' });
     if (out.githubRefreshScheduled) res.setHeader('X-Github-Refresh', 'scheduled');
     res.json(out.project);

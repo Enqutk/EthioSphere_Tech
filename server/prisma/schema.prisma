@@ -466,6 +466,24 @@ model Post {
   @@index([createdAt(sort: Desc)])
 }
 
+enum ContentViewEntity {
+  POST
+  PROJECT
+}
+
+model ContentView {
+  id         String            @id @default(cuid())
+  entityType ContentViewEntity @map("entity_type")
+  entityId   String            @map("entity_id")
+  viewerKey  String            @map("viewer_key")
+  userId     String?           @map("user_id")
+  createdAt  DateTime          @default(now()) @map("created_at")
+
+  @@unique([entityType, entityId, viewerKey])
+  @@index([entityType, entityId])
+  @@map("content_views")
+}
+
 enum PostSection {
   GENERAL
   DEBUG_HELP

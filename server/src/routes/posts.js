@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
 import { sendRouteError } from '../lib/dbErrors.js';
 import { parseListPagination } from '../lib/pagination.js';
+import { viewerKeyFromRequest } from '../lib/viewerKey.js';
 import { postPulseScore } from '../lib/pulseScore.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import { parseGithubRepo, verifyPublicGithubRepo } from '../lib/githubPublic.js';
@@ -37,7 +38,11 @@ postsRouter.get('/', optionalAuth, async (req, res) => {
 
 postsRouter.get('/:id', optionalAuth, async (req, res) => {
   try {
-    const out = await getPostDetailForViewer(req.params.id, req.user?.id);
+    const out = await getPostDetailForViewer(
+      req.params.id,
+      req.user?.id,
+      viewerKeyFromRequest(req, req.user?.id),
+    );
     if (!out) return res.status(404).json({ error: 'Post not found' });
     res.json(out);
   } catch (err) {

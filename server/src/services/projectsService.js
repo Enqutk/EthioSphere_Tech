@@ -2,6 +2,8 @@ import { prisma } from '../lib/prisma.js';
 import { parseGithubRepo, verifyPublicGithubRepo, buildPublicRepoBundle } from '../lib/githubPublic.js';
 import { projectListVisibilityWhere, canViewProject } from '../lib/projectAccess.js';
 import { projectPulseScore } from '../lib/pulseScore.js';
+import { recordUniqueContentView } from '../lib/contentViews.js';
+import { isUniqueConstraintError } from '../lib/prismaErrors.js';
 import { normalizeProjectRole, normalizeRolesNeeded } from '../lib/disciplines.js';
 import { paginatedResult } from '../lib/pagination.js';
 
@@ -80,7 +82,7 @@ export async function listProjectsForViewer({ viewerId, status, type, search, ta
   return paginatedResult(items, { take, skip });
 }
 
-export async function getProjectDetailForViewer(projectId, viewerId) {
+export async function getProjectDetailForViewer(projectId, viewerId, viewerKey) {
   let project = await prisma.project.findUnique({ where: { id: projectId }, include: projectInclude });
   if (!project) return { notFound: true };
 
@@ -124,8 +126,19 @@ export async function getProjectDetailForViewer(projectId, viewerId) {
     }
   }
 
-  await prisma.project.update({ where: { id: project.id }, data: { viewCount: { increment: 1 } } });
-  const viewCount = project.viewCount + 1;
+  let viewCount = project.viewCount;
+  if (viewerKey) {
+    const isNewView = await recordUniqueContentView(prisma, {
+      entityType: 'PROJECT',
+      entityId: project.id,
+      viewerKey,
+      userId: viewerId,
+    });
+    if (isNewView) {
+      await prisma.project.update({ where: { id: project.id }, data: { viewCount: { increment: 1 } } });
+      viewCount = project.viewCount + 1;
+    }
+  }
   let likedByViewer = false;
   if (viewerId) {
     likedByViewer = Boolean(
@@ -177,10 +190,25 @@ export async function toggleProjectLike(projectId, userId) {
     return { notFound: false, payload: { liked: false, likeCount, pulseScore } };
   }
 
-  await prisma.$transaction([
-    prisma.projectLike.create({ data: { projectId: project.id, userId } }),
-    prisma.project.update({ where: { id: project.id }, data: { likeCount: { increment: 1 } } }),
-  ]);
+  try {
+    await prisma.$transaction([
+      prisma.projectLike.create({ data: { projectId: project.id, userId } }),
+      prisma.project.update({ where: { id: project.id }, data: { likeCount: { increment: 1 } } }),
+    ]);
+  } catch (err) {
+    if (isUniqueConstraintError(err)) {
+      const likeCount = project.likeCount;
+      const pulseScore = projectPulseScore({
+        likeCount,
+        viewCount: project.viewCount,
+        memberCount,
+        repoStars: repoStarsFromGithubData(gh),
+      });
+      return { notFound: false, payload: { liked: true, likeCount, pulseScore } };
+    }
+    throw err;
+  }
+
   const likeCount = project.likeCount + 1;
   const pulseScore = projectPulseScore({
     likeCount,

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
 import { sendRouteError } from '../lib/dbErrors.js';
+import { isUniqueConstraintError } from '../lib/prismaErrors.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import { canUserCreateChallenge, challengeCreateRequirementText } from '../lib/challengeEligibility.js';
 import {
@@ -334,15 +335,22 @@ challengesRouter.post('/:challengeId/submissions/:submissionId/like', requireAut
       ]);
       return res.json({ liked: false, likeCount: Math.max(0, submission.likeCount - 1) });
     }
-    await prisma.$transaction([
-      prisma.challengeSubmissionLike.create({
-        data: { submissionId: submission.id, userId: req.user.id },
-      }),
-      prisma.challengeSubmission.update({
-        where: { id: submission.id },
-        data: { likeCount: { increment: 1 } },
-      }),
-    ]);
+    try {
+      await prisma.$transaction([
+        prisma.challengeSubmissionLike.create({
+          data: { submissionId: submission.id, userId: req.user.id },
+        }),
+        prisma.challengeSubmission.update({
+          where: { id: submission.id },
+          data: { likeCount: { increment: 1 } },
+        }),
+      ]);
+    } catch (err) {
+      if (isUniqueConstraintError(err)) {
+        return res.json({ liked: true, likeCount: submission.likeCount });
+      }
+      throw err;
+    }
     res.json({ liked: true, likeCount: submission.likeCount + 1 });
   } catch (err) {
     sendRouteError(res, err, 'POST .../like', 'Could not update like');
