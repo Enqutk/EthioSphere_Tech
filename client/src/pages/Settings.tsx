@@ -9,6 +9,7 @@ import { canApplyForVerification, hasVerificationUnderReview } from '@/shared/co
 import { SocialPresenceSettings } from '@/shared/components/settings/SocialPresenceSettings';
 import type { DesignLinks } from '@/shared/constants/disciplines';
 import type { SocialLinks } from '@/shared/constants/socialPlatforms';
+import { GENDER_LABELS, type Gender } from '@/shared/constants/demographics';
 
 type SettingsData = {
   email: string;
@@ -17,6 +18,8 @@ type SettingsData = {
   accountType?: 'DEVELOPER' | 'COMPANY';
   hasPassword?: boolean;
   googleLinked?: boolean;
+  dateOfBirth?: string | null;
+  gender?: Gender | null;
   notificationPrefs: NotificationPrefs;
   githubUrl?: string | null;
   portfolioUrl?: string | null;
@@ -288,10 +291,29 @@ export default function Settings() {
               <dt className="text-slate-500">Username</dt>
               <dd className="font-mono text-slate-200">@{data.username}</dd>
             </div>
-            <div className="flex justify-between gap-4">
+            <div className="flex justify-between gap-4 border-b border-slate-800/80 pb-3">
               <dt className="text-slate-500">Account type</dt>
               <dd className="text-slate-200">{isCompany ? 'Company' : 'Developer'}</dd>
             </div>
+            {data.dateOfBirth && (
+              <div className="flex justify-between gap-4 border-b border-slate-800/80 pb-3">
+                <dt className="text-slate-500">Date of birth</dt>
+                <dd className="text-slate-200">
+                  {new Date(data.dateOfBirth).toLocaleDateString(undefined, {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    timeZone: 'UTC',
+                  })}
+                </dd>
+              </div>
+            )}
+            {data.gender && (
+              <div className={`flex justify-between gap-4 ${data.dateOfBirth ? '' : 'border-t border-slate-800/80 pt-3'}`}>
+                <dt className="text-slate-500">Gender</dt>
+                <dd className="text-slate-200">{GENDER_LABELS[data.gender as Gender] ?? data.gender}</dd>
+              </div>
+            )}
           </dl>
           <Link to="/profile/edit" className="btn-secondary inline-block text-xs">
             Edit public profile

@@ -4,6 +4,12 @@ import { useAuth } from '@/shared/components/AuthProvider';
 import { authApi } from '@/shared/api';
 import { DISCIPLINE_LABELS, parseDisciplineSlug } from '@/shared/constants/disciplines';
 import { GoogleSignInButton } from '@/shared/components/GoogleSignInButton';
+import {
+  GENDER_OPTIONS,
+  maxDateOfBirthForRegister,
+  minDateOfBirthForRegister,
+  type Gender,
+} from '@/shared/constants/demographics';
 
 type AccountKind = 'developer' | 'company';
 type DisciplineSlug = 'developer' | 'ui_ux' | 'graphics' | 'devops' | 'pm';
@@ -19,6 +25,8 @@ export default function Register() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [gender, setGender] = useState<Gender | ''>('');
   const [githubUrl, setGithubUrl] = useState('');
   const [companyWebsite, setCompanyWebsite] = useState('');
   const [companyDescription, setCompanyDescription] = useState('');
@@ -33,6 +41,14 @@ export default function Register() {
       setError('Please accept the Privacy Policy and Terms of Service to continue.');
       return;
     }
+    if (!dateOfBirth) {
+      setError('Please enter your date of birth.');
+      return;
+    }
+    if (!gender) {
+      setError('Please select a gender option.');
+      return;
+    }
     setLoading(true);
     try {
       const { user, token, githubNote } = await authApi.register({
@@ -40,6 +56,8 @@ export default function Register() {
         username: username.toLowerCase(),
         email,
         password,
+        dateOfBirth,
+        gender,
         agreedToTerms: true,
         accountType: accountKind,
         ...(accountKind === 'developer' ? { primaryDiscipline: discipline } : {}),
@@ -117,6 +135,52 @@ export default function Register() {
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-slate-300">Password</label>
             <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="input mt-1" minLength={6} required />
+          </div>
+
+          <div className="rounded-lg border border-slate-800/90 bg-surface-900/30 p-4">
+            <p className="font-mono text-[10px] uppercase tracking-wide text-slate-500">About you</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Used for age verification and community safety. Not shown on your public profile.
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="dateOfBirth" className="block text-sm font-medium text-slate-300">
+                  Date of birth
+                </label>
+                <input
+                  id="dateOfBirth"
+                  type="date"
+                  value={dateOfBirth}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                  className="input mt-1 w-full"
+                  min={minDateOfBirthForRegister()}
+                  max={maxDateOfBirthForRegister()}
+                  required
+                />
+                <p className="mt-1 text-xs text-slate-600">You must be at least 13 years old.</p>
+              </div>
+              <div>
+                <label htmlFor="gender" className="block text-sm font-medium text-slate-300">
+                  Gender
+                </label>
+                <select
+                  id="gender"
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value as Gender)}
+                  className="input mt-1 w-full"
+                  required
+                >
+                  <option value="" disabled>
+                    Select…
+                  </option>
+                  {GENDER_OPTIONS.map(({ value, label }) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
           {accountKind === 'developer' ? (

@@ -24,6 +24,8 @@ export const authApi = {
     companyDescription?: string;
     agreedToTerms: boolean;
     primaryDiscipline?: string;
+    dateOfBirth: string;
+    gender: string;
   }) =>
     api<{ user: User; token: string; githubNote?: string }>('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
 
