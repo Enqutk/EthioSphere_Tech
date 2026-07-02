@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { postPulseScore } from '../lib/pulseScore.js';
-import { canViewProject } from '../lib/projectAccess.js';
+import { canViewProject, projectPayloadsForViewer } from '../lib/projectAccess.js';
 import { paginatedResult } from '../lib/pagination.js';
 
 const postProjectSelect = {
@@ -94,16 +94,19 @@ export async function listPostsForViewer({ section, search, viewerId, take = 50,
     take: take + 1,
   });
   const ids = posts.map((p) => p.id);
-  const [tallies, viewerVoteMap] = await Promise.all([
+  const [tallies, viewerVoteMap, projectPayloadMap] = await Promise.all([
     postVoteTalliesForIds(ids),
     viewerVotesForPosts(viewerId, ids),
+    projectPayloadsForViewer(
+      prisma,
+      posts.map((p) => p.project).filter(Boolean),
+      viewerId,
+    ),
   ]);
-  const items = await Promise.all(
-    posts.map(async (p) => {
-      const project = await projectPayloadForViewer(p.project, viewerId);
-      return shapePostListItem(p, tallies, viewerVoteMap, project);
-    }),
-  );
+  const items = posts.map((p) => {
+    const project = p.project ? projectPayloadMap.get(p.project.id) ?? null : null;
+    return shapePostListItem(p, tallies, viewerVoteMap, project);
+  });
   return paginatedResult(items, { take, skip });
 }
 
