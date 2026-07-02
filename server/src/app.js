@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import { getCorsOrigin, validateProductionConfig } from './config/index.js';
 import { authRouter } from './routes/auth.js';
@@ -26,6 +27,7 @@ export function createApp() {
   }
 
   app.use(cors({ origin: getCorsOrigin(), credentials: true }));
+  app.use(cookieParser());
   app.use(express.json());
 
   const limiter = rateLimit({

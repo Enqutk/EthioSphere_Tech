@@ -5,6 +5,7 @@ import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
 import { sendRouteError } from '../lib/dbErrors.js';
 import { signToken } from '../middleware/auth.js';
+import { setSessionCookie, clearSessionCookie } from '../lib/sessionCookie.js';
 import { parseGithubUserLogin, fetchGithubUser, inferRankFromGithub } from '../lib/githubPublic.js';
 import { resolveActiveBan, banStatusPayload } from '../lib/banHelpers.js';
 import { parsePrimaryDiscipline } from '../lib/disciplines.js';
@@ -153,10 +154,10 @@ authRouter.get('/google/callback', async (req, res) => {
       return fail(String(payload.error || 'Account suspended'));
     }
 
-    const token = signToken({ userId: activeUser.id });
+    setSessionCookie(res, signToken({ userId: activeUser.id }));
     const redirectTo =
       typeof stateData.from === 'string' && stateData.from.startsWith('/') ? stateData.from : '/';
-    res.redirect(`${clientOrigin}/auth/callback?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent(redirectTo)}`);
+    res.redirect(`${clientOrigin}/auth/callback?redirect=${encodeURIComponent(redirectTo)}`);
   } catch (err) {
     console.error('GET /api/auth/google/callback', err);
     fail(err.message || 'Google sign-in failed');
@@ -165,6 +166,11 @@ authRouter.get('/google/callback', async (req, res) => {
 
 authRouter.get('/google/status', (req, res) => {
   res.json({ enabled: isGoogleOAuthConfigured() });
+});
+
+authRouter.post('/logout', (req, res) => {
+  clearSessionCookie(res);
+  res.json({ ok: true });
 });
 
 authRouter.post(
@@ -299,10 +305,9 @@ authRouter.post(
           },
         },
       });
-      const token = signToken({ userId: user.id });
+      setSessionCookie(res, signToken({ userId: user.id }));
       res.status(201).json({
         user: { ...user, hasPassword: true, googleLinked: false },
-        token,
         ...(githubNote && { githubNote }),
       });
     } catch (err) {
@@ -367,10 +372,9 @@ authRouter.post(
         return res.status(403).json(banStatusPayload({ ...activeUser, pendingAppeal }));
       }
 
-      const token = signToken({ userId: activeUser.id });
+      setSessionCookie(res, signToken({ userId: activeUser.id }));
       res.json({
         user: publicAuthUser(activeUser),
-        token,
       });
     } catch (err) {
       sendRouteError(res, err, 'POST /api/auth/login', 'Login failed');

@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma.js';
 import { resolveActiveBan, banStatusPayload } from '../lib/banHelpers.js';
 import { getJwtSecret } from '../config/index.js';
+import { readSessionToken } from '../lib/sessionCookie.js';
 
 export function signToken(payload) {
   return jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
@@ -17,8 +18,7 @@ export function verifyToken(token) {
 
 export async function requireAuth(req, res, next) {
   try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const token = readSessionToken(req);
     if (!token) {
       return res.status(401).json({ error: 'Authentication required' });
     }
@@ -94,8 +94,7 @@ export function requireAdmin(req, res, next) {
  */
 export function optionalAuth(req, res, next) {
   try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const token = readSessionToken(req);
     if (!token) {
       req.user = undefined;
       return next();
