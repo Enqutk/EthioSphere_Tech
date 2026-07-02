@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '@/shared/components/AuthProvider';
 import { authApi, type BanInfo } from '@/shared/api/auth';
 import { ApiError } from '@/shared/api/http';
+import { GoogleSignInButton } from '@/shared/components/GoogleSignInButton';
 
 function formatBanDate(iso: string | null | undefined) {
   if (!iso) return null;
@@ -247,6 +248,21 @@ export default function Login() {
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
+
+        <div className="mt-6">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center" aria-hidden>
+              <div className="w-full border-t border-slate-800" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-surface-900 px-2 text-slate-500">or</span>
+            </div>
+          </div>
+          <div className="mt-4">
+            <GoogleSignInButton from={redirectTo} />
+          </div>
+        </div>
+
         <p className="mt-6 text-center text-sm text-slate-400">
           New here?{' '}
           <Link to="/register" className="font-medium text-brand-400 hover:underline">

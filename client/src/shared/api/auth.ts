@@ -1,4 +1,4 @@
-import { api, ApiError } from './http';
+import { api, getApiBaseUrl, ApiError } from './http';
 import type { User } from './types';
 
 export type BanInfo = {
@@ -42,4 +42,12 @@ export const authApi = {
 
   submitBanAppeal: (body: { email: string; password: string; message: string; explanation?: string }) =>
     api<{ ok: boolean; message: string }>('/api/auth/ban-appeal', { method: 'POST', body: JSON.stringify(body) }),
+
+  googleStatus: () => api<{ enabled: boolean }>('/api/auth/google/status'),
+
+  googleAuthUrl: (from = '/') => {
+    const base = getApiBaseUrl();
+    const path = `/api/auth/google?from=${encodeURIComponent(from)}`;
+    return base ? `${base}${path}` : path;
+  },
 };

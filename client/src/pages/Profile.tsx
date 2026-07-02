@@ -27,7 +27,7 @@ type Profile = {
     legalName: string;
     website: string;
     description?: string | null;
-    verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
+    verificationStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
     verifiedAt?: string | null;
     _count?: { likes: number; reviews: number };
   } | null;
@@ -147,14 +147,27 @@ export default function Profile() {
         </span>
       );
     }
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-red-500/20 px-2 py-0.5 text-xs text-red-400">
-        <svg className="h-3 w-3" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-          <path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM5.8 5.1 6.9 4l2.1 2.1L11.1 4l1.1 1.1L9.1 7.2l2.1 2.1-1.1 1.1L8 8.3 5.9 10.4 4.8 9.3l2.1-2.1L4.8 5.1Z" />
-        </svg>
-        Verification rejected
-      </span>
-    );
+    if (verification === 'UNVERIFIED') {
+      return isOwn ? (
+        <Link
+          to="/settings"
+          className="inline-flex items-center gap-1 rounded-full bg-slate-700/40 px-2 py-0.5 text-xs text-slate-400 hover:text-brand-300"
+        >
+          Apply for verification
+        </Link>
+      ) : null;
+    }
+    if (verification === 'REJECTED') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-red-500/20 px-2 py-0.5 text-xs text-red-400">
+          <svg className="h-3 w-3" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+            <path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM5.8 5.1 6.9 4l2.1 2.1L11.1 4l1.1 1.1L9.1 7.2l2.1 2.1-1.1 1.1L8 8.3 5.9 10.4 4.8 9.3l2.1-2.1L4.8 5.1Z" />
+          </svg>
+          Verification rejected
+        </span>
+      );
+    }
+    return null;
   }
 
   if (loading) return <div className="mx-auto max-w-2xl px-6 py-16 text-center text-slate-400">Loading profile…</div>;

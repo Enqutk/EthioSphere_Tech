@@ -6,7 +6,7 @@ export type CompanyProfile = {
     legalName: string;
     website: string;
     description?: string | null;
-    verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
+    verificationStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
     verifiedAt?: string | null;
     likeCount: number;
     averageRating: number | null;
@@ -47,4 +47,46 @@ export const companiesApi = {
       method: 'POST',
       token,
     }),
+
+  me: (token: string) =>
+    api<{
+      id: string;
+      legalName: string;
+      website: string;
+      description?: string | null;
+      verificationStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+      verificationNote?: string | null;
+      verificationRequestedAt?: string | null;
+      verifiedAt?: string | null;
+    }>('/api/companies/me', { token }),
+
+  updateMe: (
+    token: string,
+    body: { legalName?: string; website?: string; description?: string },
+  ) =>
+    api<{
+      id: string;
+      legalName: string;
+      website: string;
+      description?: string | null;
+      verificationStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+      verificationNote?: string | null;
+      verificationRequestedAt?: string | null;
+      verifiedAt?: string | null;
+    }>('/api/companies/me', { method: 'PATCH', body: JSON.stringify(body), token }),
+
+  applyVerification: (token: string, body: { message?: string }) =>
+    api<{
+      message: string;
+      company: {
+        id: string;
+        legalName: string;
+        website: string;
+        description?: string | null;
+        verificationStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+        verificationNote?: string | null;
+        verificationRequestedAt?: string | null;
+        verifiedAt?: string | null;
+      };
+    }>('/api/companies/me/apply-verification', { method: 'POST', body: JSON.stringify(body), token }),
 };

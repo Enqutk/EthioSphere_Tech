@@ -18,6 +18,10 @@ const API_BASE =
   .trim()
   .replace(/\/+$/, '');
 
+export function getApiBaseUrl() {
+  return API_BASE;
+}
+
 function toApiUrl(path: string) {
   const normalized = path.startsWith('/') ? path : `/${path}`;
   return `${API_BASE}${normalized}`;

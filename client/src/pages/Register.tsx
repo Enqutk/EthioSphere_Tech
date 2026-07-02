@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/shared/components/AuthProvider';
 import { authApi } from '@/shared/api';
 import { DISCIPLINE_LABELS, parseDisciplineSlug } from '@/shared/constants/disciplines';
+import { GoogleSignInButton } from '@/shared/components/GoogleSignInButton';
 
 type AccountKind = 'developer' | 'company';
 type DisciplineSlug = 'developer' | 'ui_ux' | 'graphics' | 'devops' | 'pm';
@@ -55,7 +56,7 @@ export default function Register() {
         state: githubNote
           ? { banner: githubNote }
           : accountKind === 'company'
-            ? { banner: 'Company registered — pending verification by our team.' }
+            ? { banner: 'Company registered. Apply for verification in Settings when you are ready.' }
             : undefined,
       });
     } catch (err: unknown) {
@@ -201,6 +202,22 @@ export default function Register() {
             {loading ? 'Creating account…' : accountKind === 'company' ? 'Register company' : 'Sign up'}
           </button>
         </form>
+
+        {accountKind === 'developer' && (
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center" aria-hidden>
+                <div className="w-full border-t border-slate-800" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-surface-900 px-2 text-slate-500">or</span>
+              </div>
+            </div>
+            <div className="mt-4">
+              <GoogleSignInButton from="/" />
+            </div>
+          </div>
+        )}
       </div>
       <p className="mt-6 text-center text-sm text-slate-400">
         Already have an account? <Link to="/login" className="text-brand-400 hover:underline">Log in</Link>

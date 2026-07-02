@@ -22,6 +22,8 @@ import Admin from '@/pages/Admin';
 import FindBuddies from '@/pages/FindBuddies';
 import Privacy from '@/pages/Privacy';
 import Terms from '@/pages/Terms';
+import Settings from '@/pages/Settings';
+import AuthCallback from '@/pages/AuthCallback';
 
 export default function App() {
   return (
@@ -32,6 +34,8 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="/profile/edit" element={<ProfileEdit />} />
           <Route path="/profile/:username" element={<Profile />} />
           <Route path="/inbox" element={<Inbox />} />

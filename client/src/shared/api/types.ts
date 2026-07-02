@@ -17,11 +17,13 @@ export type User = {
   accountType?: 'DEVELOPER' | 'COMPANY';
   primaryDiscipline?: PrimaryDiscipline;
   designLinks?: DesignLinks | null;
+  hasPassword?: boolean;
+  googleLinked?: boolean;
   company?: {
     id: string;
     legalName: string;
     website: string;
-    verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
+    verificationStatus: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
   } | null;
   /** Set at registration when GitHub is linked */
   githubUrl?: string | null;
