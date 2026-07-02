@@ -21,12 +21,13 @@ export async function startTestServer(createApp) {
 }
 
 export async function requestJson(baseUrl, path, options = {}) {
+  const { headers: optionHeaders, ...rest } = options;
   const res = await fetch(`${baseUrl}${path}`, {
+    ...rest,
     headers: {
       'Content-Type': 'application/json',
-      ...(options.headers || {}),
+      ...(optionHeaders || {}),
     },
-    ...options,
   });
 
   const text = await res.text();

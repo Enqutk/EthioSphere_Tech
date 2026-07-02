@@ -66,6 +66,10 @@ model User {
   followsIncoming Follow[]        @relation("FollowFollowee")
   projectLikes    ProjectLike[]
   passwordResetTokens PasswordResetToken[]
+  blocksOutgoing    UserBlock[] @relation("BlocksOutgoing")
+  blocksIncoming    UserBlock[] @relation("BlocksIncoming")
+  dmMutesOutgoing   DmMute[]    @relation("DmMutesOutgoing")
+  dmMutesIncoming   DmMute[]    @relation("DmMutesIncoming")
 }
 
 enum Rank {
@@ -266,6 +270,35 @@ model DmMessage {
   sender    User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
   @@index([threadId, createdAt(sort: Desc)])
   @@map("dm_messages")
+}
+
+model UserBlock {
+  id        String   @id @default(cuid())
+  blockerId String   @map("blocker_id")
+  blockedId String   @map("blocked_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  blocker User @relation("BlocksOutgoing", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlocksIncoming", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+  @@map("user_blocks")
+}
+
+model DmMute {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  mutedUserId String   @map("muted_user_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user      User @relation("DmMutesOutgoing", fields: [userId], references: [id], onDelete: Cascade)
+  mutedUser User @relation("DmMutesIncoming", fields: [mutedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mutedUserId])
+  @@index([userId])
+  @@map("dm_mutes")
 }
 
 model UserBadge {
