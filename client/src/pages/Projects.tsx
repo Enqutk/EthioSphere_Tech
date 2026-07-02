@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { projectsApi } from '@/shared/api';
+import { FollowCreatorActions } from '@/shared/components/FollowCreatorActions';
 import { PulseStrip } from '@/shared/components/PulseStrip';
 import { RolesNeededBadges } from '@/shared/components/RolesNeededPicker';
 
@@ -63,9 +64,12 @@ export default function Projects() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-12">
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="font-mono text-2xl font-semibold text-slate-100">Project Playground</h1>
         <div className="flex flex-wrap items-center gap-3">
+          <Link to="/buddies" className="text-sm text-brand-400 hover:underline">
+            Follow builders →
+          </Link>
           <Link to="/projects/new" className="btn-primary text-sm">New project</Link>
           <input type="search" placeholder="Search projects…" value={search} onChange={(e) => setSearch(e.target.value)} className="input max-w-xs" />
         </div>
@@ -114,7 +118,12 @@ export default function Projects() {
                       />
                     </div>
                   </div>
-                  <div className="text-right text-sm text-slate-500">by {p.owner.name} (@{p.owner.username})</div>
+                  <div className="text-right text-sm text-slate-500">
+                    <div>by {p.owner.name} (@{p.owner.username})</div>
+                    <div className="mt-2 flex justify-end">
+                      <FollowCreatorActions username={p.owner.username} userId={p.owner.id} compact />
+                    </div>
+                  </div>
                 </div>
               </Link>
             </li>

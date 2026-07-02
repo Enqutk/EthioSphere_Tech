@@ -10,9 +10,11 @@ type Props = {
   initialFollowForViewer?: FollowForViewer | null;
   onChanged?: () => void;
   className?: string;
+  /** Smaller buttons for list cards */
+  compact?: boolean;
 };
 
-export function FollowCreatorActions({ username, userId, initialFollowForViewer, onChanged, className }: Props) {
+export function FollowCreatorActions({ username, userId, initialFollowForViewer, onChanged, className, compact }: Props) {
   const { user } = useAuth();
   const [fv, setFv] = useState<FollowForViewer | null | undefined>(initialFollowForViewer ?? undefined);
   const [loading, setLoading] = useState(initialFollowForViewer === undefined && !!user);
@@ -65,11 +67,14 @@ export function FollowCreatorActions({ username, userId, initialFollowForViewer,
     return (
       <div className={className}>
         <Link to="/login" state={{ from: window.location.pathname }} className="text-sm text-brand-400 hover:underline">
-          Log in to follow
+          Sign in to follow @{username}
         </Link>
       </div>
     );
   }
+
+  const btn = compact ? 'text-xs py-1 px-2' : 'text-xs py-1 px-2';
+  const followTitle = 'Follow to see their followers-only projects and message them once they accept';
 
   if (loading || fv === undefined) {
     return <span className={`text-xs text-slate-500 ${className ?? ''}`}>…</span>;
@@ -81,25 +86,28 @@ export function FollowCreatorActions({ username, userId, initialFollowForViewer,
 
   return wrap(
     <>
-      <Link to={`/inbox/${userId}`} className="btn-secondary text-xs py-1 px-2">
-        Message
-      </Link>
+      {(!compact || fv.direction === 'outbound' && fv.status === 'ACCEPTED') && (
+        <Link to={`/inbox/${userId}`} className={`btn-secondary ${btn}`}>
+          Message
+        </Link>
+      )}
       {fv.direction === 'none' || !fv.direction ? (
         <button
           type="button"
-          className="btn-primary text-xs py-1 px-2"
+          className={`btn-primary ${btn}`}
+          title={followTitle}
           onClick={async () => {
             await followApi.follow(username);
             await refresh();
           }}
         >
-          Request follow
+          Follow
         </button>
       ) : null}
       {fv.direction === 'outbound' && fv.status === 'PENDING' && (
         <button
           type="button"
-          className="btn-secondary text-xs py-1 px-2"
+          className={`btn-secondary ${btn}`}
           onClick={async () => {
             await followApi.unfollow(username);
             await refresh();
@@ -111,7 +119,7 @@ export function FollowCreatorActions({ username, userId, initialFollowForViewer,
       {fv.direction === 'outbound' && fv.status === 'ACCEPTED' && (
         <button
           type="button"
-          className="btn-secondary text-xs py-1 px-2"
+          className={`btn-secondary ${btn}`}
           onClick={async () => {
             await followApi.unfollow(username);
             await refresh();
@@ -123,13 +131,14 @@ export function FollowCreatorActions({ username, userId, initialFollowForViewer,
       {fv.direction === 'outbound' && fv.status === 'REJECTED' && (
         <button
           type="button"
-          className="btn-primary text-xs py-1 px-2"
+          className={`btn-primary ${btn}`}
+          title={followTitle}
           onClick={async () => {
             await followApi.follow(username);
             await refresh();
           }}
         >
-          Request follow
+          Follow again
         </button>
       )}
       {fv.direction === 'inbound' && fv.status === 'PENDING' && fv.id && (

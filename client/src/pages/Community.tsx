@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { postsApi } from '@/shared/api';
+import { useAuth } from '@/shared/components/AuthProvider';
+import { FollowCreatorActions } from '@/shared/components/FollowCreatorActions';
 import { PulseStrip } from '@/shared/components/PulseStrip';
 
 type Post = {
@@ -26,6 +28,7 @@ const SECTIONS: Record<string, string> = {
 };
 
 export default function Community() {
+  const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -63,7 +66,19 @@ export default function Community() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-mono text-2xl font-semibold text-slate-100">Community</h1>
-          <p className="mt-2 text-slate-400">Discuss, get debug help, and share feedback.</p>
+          <p className="mt-2 text-slate-400">
+            Discuss, get debug help, and share feedback.{' '}
+            {user ? (
+              <Link to="/buddies" className="text-brand-400 hover:underline">
+                Follow authors
+              </Link>
+            ) : (
+              <Link to="/register" className="text-brand-400 hover:underline">
+                Join and follow developers
+              </Link>
+            )}{' '}
+            to stay on their threads and projects.
+          </p>
         </div>
         <Link to="/community/new" className="btn-primary text-sm">New post</Link>
       </div>
@@ -86,9 +101,12 @@ export default function Community() {
                   <h2 className="font-mono font-semibold text-slate-100">{p.title}</h2>
                   <p className="mt-1 line-clamp-2 text-sm text-slate-400">{p.body}</p>
                 </Link>
-                <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">
-                  <Link to={`/community/${p.id}`} className="hover:text-brand-400">{SECTIONS[p.section] ?? p.section}</Link>
-                  <span>by @{p.author.username}</span>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/60 pt-3">
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+                    <Link to={`/community/${p.id}`} className="hover:text-brand-400">{SECTIONS[p.section] ?? p.section}</Link>
+                    <Link to={`/profile/${p.author.username}`} className="hover:text-brand-400">
+                      @{p.author.username}
+                    </Link>
                   {p.solved && <span className="text-green-400">Solved</span>}
                   {p.project && (
                     <Link
@@ -105,6 +123,8 @@ export default function Community() {
                   {p.commentCount != null && (
                     <Link to={`/community/${p.id}`} className="hover:text-brand-400">{p.commentCount} comments</Link>
                   )}
+                  </div>
+                  <FollowCreatorActions username={p.author.username} userId={p.author.id} compact />
                 </div>
                 {(p.pulseScore != null || p.viewCount != null) && (
                   <div className="mt-3 border-t border-slate-800/80 pt-3">

@@ -79,7 +79,7 @@ export default function FindBuddies() {
       </div>
       <h1 className="font-mono text-2xl font-semibold text-slate-100">Find buddies</h1>
       <p className="mt-2 max-w-2xl text-sm text-slate-400">
-        Search by name, username, or bio. Filter by discipline or skill tag. Follow creators and peek at their public projects and community posts.
+        Search by name, username, or bio. Follow builders to see followers-only projects, get their updates in your network, and message after they accept.
       </p>
 
       <form onSubmit={handleSearch} className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">

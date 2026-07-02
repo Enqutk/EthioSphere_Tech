@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { postsApi, projectsApi } from '@/shared/api';
 import { useAuth } from '@/shared/components/AuthProvider';
 import { RolesNeededBadges } from '@/shared/components/RolesNeededPicker';
+import { SuggestedPeople } from '@/shared/components/SuggestedPeople';
 
 type Module = {
   code: string;
@@ -121,7 +122,7 @@ export default function Home() {
     {
       code: 'LINK',
       title: 'Connect',
-      oneLiner: 'Find people, follow (request-based), and direct messages.',
+      oneLiner: 'Find people, follow them, and unlock DMs plus followers-only projects.',
       href: '/buddies',
       accent: 'red',
     },
@@ -169,9 +170,14 @@ export default function Home() {
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
             {ready && user ? (
-              <Link to={profileHref} className="btn-primary">
-                Open profile
-              </Link>
+              <>
+                <Link to={profileHref} className="btn-primary">
+                  Open profile
+                </Link>
+                <Link to="/buddies" className="btn-secondary">
+                  Find people to follow
+                </Link>
+              </>
             ) : ready ? (
               <Link to="/register" className="btn-primary">
                 Create account
@@ -190,6 +196,14 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {user && (
+        <section className="relative border-t border-brand-900/40 bg-surface-950/50 py-14 md:py-16">
+          <div className="mx-auto max-w-6xl px-6">
+            <SuggestedPeople />
+          </div>
+        </section>
+      )}
 
       <section className="relative border-t border-brand-900/40 bg-surface-950/60 py-14 md:py-16">
         <div className="mx-auto max-w-6xl px-6">

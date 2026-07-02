@@ -274,7 +274,7 @@ export default function Profile() {
                       await reloadProfile();
                     }}
                   >
-                    Request follow
+                    Follow
                   </button>
                 ) : null)}
                 {!isCompany && profile.followForViewer?.direction === 'outbound' && profile.followForViewer.status === 'PENDING' && (
@@ -310,7 +310,7 @@ export default function Profile() {
                       await reloadProfile();
                     }}
                   >
-                    Request follow
+                    Follow
                   </button>
                 )}
                 {!isCompany && profile.followForViewer?.direction === 'inbound' && profile.followForViewer.status === 'PENDING' && profile.followForViewer.id && (

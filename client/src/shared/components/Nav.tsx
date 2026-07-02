@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { followApi } from '@/shared/api';
 import { useAuth } from '@/shared/components/AuthProvider';
 
 export function Nav() {
@@ -9,6 +10,26 @@ export function Nav() {
   const pathname = location.pathname;
   const { user, logout, ready } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [followRequestCount, setFollowRequestCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) {
+      setFollowRequestCount(0);
+      return;
+    }
+    let cancelled = false;
+    followApi
+      .incoming()
+      .then((rows) => {
+        if (!cancelled) setFollowRequestCount(rows.length);
+      })
+      .catch(() => {
+        if (!cancelled) setFollowRequestCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, pathname]);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -29,6 +50,8 @@ export function Nav() {
     await logout();
     navigate('/login', { replace: true, state: { signedOut: true } });
   }
+
+  const inboxLabel = followRequestCount > 0 ? `Inbox (${followRequestCount})` : 'Inbox';
 
   const linkClass = (active: boolean, block = false) =>
     `rounded-md font-mono text-xs font-medium uppercase tracking-wide transition ${
@@ -95,7 +118,7 @@ export function Nav() {
                       className={linkClass(pathname.startsWith('/inbox'), true)}
                       onClick={() => setMenuOpen(false)}
                     >
-                      Inbox
+                      {inboxLabel}
                     </Link>
                     <Link
                       to="/settings"
@@ -174,7 +197,7 @@ export function Nav() {
               (user ? (
                 <>
                   <Link to="/inbox" className={linkClass(pathname.startsWith('/inbox'))}>
-                    Inbox
+                    {inboxLabel}
                   </Link>
                   <Link to="/settings" className={linkClass(pathname === '/settings')}>
                     Settings
