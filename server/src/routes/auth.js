@@ -8,6 +8,7 @@ import { signToken } from '../middleware/auth.js';
 import { parseGithubUserLogin, fetchGithubUser, inferRankFromGithub } from '../lib/githubPublic.js';
 import { resolveActiveBan, banStatusPayload } from '../lib/banHelpers.js';
 import { parsePrimaryDiscipline } from '../lib/disciplines.js';
+import { parseGender, parseDateOfBirth } from '../lib/demographics.js';
 import { getClientOrigin } from '../config/index.js';
 import {
   isGoogleOAuthConfigured,
@@ -179,6 +180,8 @@ authRouter.post(
     body('companyDescription').optional({ values: 'falsy' }).isString().trim().isLength({ max: 2000 }),
     body('agreedToTerms').custom((v) => v === true || v === 'true').withMessage('You must accept the Privacy Policy and Terms of Service.'),
     body('primaryDiscipline').optional().isString().trim(),
+    body('dateOfBirth').isISO8601().withMessage('Date of birth is required (YYYY-MM-DD).'),
+    body('gender').isString().trim().notEmpty().withMessage('Please select a gender option.'),
   ],
   async (req, res) => {
     try {
@@ -194,6 +197,18 @@ authRouter.post(
       const companyWebsite = typeof req.body.companyWebsite === 'string' ? req.body.companyWebsite.trim() : '';
       const companyDescription =
         typeof req.body.companyDescription === 'string' ? req.body.companyDescription.trim() : '';
+
+      const gender = parseGender(req.body.gender);
+      if (!gender) {
+        return res.status(400).json({ error: 'Please select a valid gender option.' });
+      }
+
+      let dateOfBirth;
+      try {
+        dateOfBirth = parseDateOfBirth(req.body.dateOfBirth);
+      } catch (dobErr) {
+        return res.status(dobErr.status || 400).json({ error: dobErr.message });
+      }
 
       if (accountType === 'COMPANY') {
         if (!companyWebsite) {
@@ -248,6 +263,8 @@ authRouter.post(
           avatarUrl,
           accountType,
           primaryDiscipline,
+          dateOfBirth,
+          gender,
           termsAcceptedAt: new Date(),
           ...(accountType === 'COMPANY'
             ? {

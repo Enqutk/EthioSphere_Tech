@@ -37,6 +37,8 @@ model User {
   primaryDiscipline PrimaryDiscipline @default(DEVELOPER) @map("primary_discipline")
   designLinks   Json?       @map("design_links")
   socialLinks   Json?       @map("social_links")
+  dateOfBirth   DateTime?   @map("date_of_birth") @db.Date
+  gender        Gender?     @map("gender")
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
@@ -83,6 +85,13 @@ enum PrimaryDiscipline {
   GRAPHICS
   DEVOPS
   PM
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  NON_BINARY
+  PREFER_NOT_TO_SAY
 }
 
 enum CompanyVerificationStatus {

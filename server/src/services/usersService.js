@@ -38,6 +38,8 @@ export async function getCurrentUserProfile(userId) {
       primaryDiscipline: true,
       designLinks: true,
       socialLinks: true,
+      dateOfBirth: true,
+      gender: true,
       notificationPrefs: true,
       googleId: true,
       passwordHash: true,
