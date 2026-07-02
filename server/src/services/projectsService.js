@@ -3,6 +3,7 @@ import { parseGithubRepo, verifyPublicGithubRepo, buildPublicRepoBundle } from '
 import { projectListVisibilityWhere, canViewProject } from '../lib/projectAccess.js';
 import { projectPulseScore } from '../lib/pulseScore.js';
 import { normalizeProjectRole, normalizeRolesNeeded } from '../lib/disciplines.js';
+import { paginatedResult } from '../lib/pagination.js';
 
 const GITHUB_SYNC_MS = 10 * 60 * 1000;
 const githubRefreshInFlight = new Set();
@@ -28,7 +29,7 @@ function repoStarsFromGithubData(gh) {
   return Number(gh.repo.stargazers_count) || 0;
 }
 
-export async function listProjectsForViewer({ viewerId, status, type, search }) {
+export async function listProjectsForViewer({ viewerId, status, type, search, take = 50, skip = 0 }) {
   const filters = [projectListVisibilityWhere(viewerId)];
   if (status) filters.push({ status });
   if (type) filters.push({ type });
@@ -47,7 +48,8 @@ export async function listProjectsForViewer({ viewerId, status, type, search }) 
     where,
     include: projectIncludeList,
     orderBy: { createdAt: 'desc' },
-    take: 50,
+    skip,
+    take: take + 1,
   });
   let likedIds = new Set();
   if (viewerId && projects.length) {
@@ -58,7 +60,7 @@ export async function listProjectsForViewer({ viewerId, status, type, search }) 
     likedIds = new Set(likes.map((l) => l.projectId));
   }
 
-  return projects.map((p) => {
+  const items = projects.map((p) => {
     const gh = p.githubData ? omitReadmeFromGithubData(p.githubData) : p.githubData;
     const memberCount = 1 + (p.members?.length || 0);
     const pulseScore = projectPulseScore({
@@ -74,6 +76,8 @@ export async function listProjectsForViewer({ viewerId, status, type, search }) 
       likedByViewer: viewerId ? likedIds.has(p.id) : false,
     };
   });
+
+  return paginatedResult(items, { take, skip });
 }
 
 export async function getProjectDetailForViewer(projectId, viewerId) {

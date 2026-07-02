@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
 import { sendRouteError } from '../lib/dbErrors.js';
+import { parseListPagination } from '../lib/pagination.js';
 import { postPulseScore } from '../lib/pulseScore.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import { parseGithubRepo, verifyPublicGithubRepo } from '../lib/githubPublic.js';
@@ -20,12 +21,15 @@ const postProjectSelect = getPostProjectSelect();
 
 postsRouter.get('/', optionalAuth, async (req, res) => {
   try {
-    const out = await listPostsForViewer({
+    const { take, skip } = parseListPagination(req.query);
+    const page = await listPostsForViewer({
       section: req.query.section,
       search: req.query.search,
       viewerId: req.user?.id,
+      take,
+      skip,
     });
-    res.json(out);
+    res.json(page);
   } catch (err) {
     sendRouteError(res, err, 'GET /api/posts', 'Could not list posts');
   }

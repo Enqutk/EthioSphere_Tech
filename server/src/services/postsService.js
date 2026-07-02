@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma.js';
 import { postPulseScore } from '../lib/pulseScore.js';
 import { canViewProject } from '../lib/projectAccess.js';
+import { paginatedResult } from '../lib/pagination.js';
 
 const postProjectSelect = {
   id: true,
@@ -72,7 +73,7 @@ export function shapePostListItem(p, tallies, viewerVoteMap, project) {
   };
 }
 
-export async function listPostsForViewer({ section, search, viewerId }) {
+export async function listPostsForViewer({ section, search, viewerId, take = 50, skip = 0 }) {
   const where = {};
   if (section) where.section = section;
   if (search && String(search).trim()) {
@@ -89,19 +90,21 @@ export async function listPostsForViewer({ section, search, viewerId }) {
       _count: { select: { comments: true } },
     },
     orderBy: { createdAt: 'desc' },
-    take: 50,
+    skip,
+    take: take + 1,
   });
   const ids = posts.map((p) => p.id);
   const [tallies, viewerVoteMap] = await Promise.all([
     postVoteTalliesForIds(ids),
     viewerVotesForPosts(viewerId, ids),
   ]);
-  return Promise.all(
+  const items = await Promise.all(
     posts.map(async (p) => {
       const project = await projectPayloadForViewer(p.project, viewerId);
       return shapePostListItem(p, tallies, viewerVoteMap, project);
     }),
   );
+  return paginatedResult(items, { take, skip });
 }
 
 export async function getPostDetailForViewer(postId, viewerId) {

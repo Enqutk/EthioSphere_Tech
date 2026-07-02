@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { sendRouteError } from '../lib/dbErrors.js';
+import { parseListPagination } from '../lib/pagination.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import {
   listProjectsForViewer,
@@ -16,13 +17,16 @@ export const projectsRouter = Router();
 
 projectsRouter.get('/', optionalAuth, async (req, res) => {
   try {
-    const projects = await listProjectsForViewer({
+    const { take, skip } = parseListPagination(req.query);
+    const page = await listProjectsForViewer({
       viewerId: req.user?.id,
       status: req.query.status,
       type: req.query.type,
       search: req.query.search,
+      take,
+      skip,
     });
-    res.json(projects);
+    res.json(page);
   } catch (err) {
     sendRouteError(res, err, 'GET /api/projects', 'Could not list projects');
   }

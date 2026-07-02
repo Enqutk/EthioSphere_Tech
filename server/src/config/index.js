@@ -45,6 +45,12 @@ export function validateProductionConfig() {
       'CLIENT_ORIGIN must be set in production (comma-separated frontend URL(s), e.g. https://your-app.vercel.app).',
     );
   }
+
+  if (!process.env.GITHUB_TOKEN?.trim()) {
+    throw new Error(
+      'GITHUB_TOKEN must be set in production (GitHub classic PAT with no scopes — raises API limit from 60/hr to 5,000/hr).',
+    );
+  }
 }
 
 export function getClientOrigin() {
