@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { postsApi, projectsApi } from '@/shared/api';
 import { useAuth } from '@/shared/components/AuthProvider';
-import { getStoredToken } from '@/shared/components/AuthProvider';
 
 const SECTIONS = [
   { value: 'GENERAL', label: 'General' }, { value: 'DEBUG_HELP', label: 'Debug help' }, { value: 'PROJECT_FEEDBACK', label: 'Project feedback' },
@@ -33,13 +32,12 @@ export default function CommunityNew() {
   }, [searchParams]);
 
   useEffect(() => {
-    const token = getStoredToken();
-    if (!token) return;
+    if (!user) return;
     projectsApi
-      .list(undefined, token)
+      .list()
       .then((page) => setPlaygroundProjects(page.items as PlaygroundProject[]))
       .catch(() => setPlaygroundProjects([]));
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const q = searchParams.get('project') || searchParams.get('projectId');
@@ -56,12 +54,11 @@ export default function CommunityNew() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const token = getStoredToken();
-    if (!token) return;
+    if (!user) return;
     setLoading(true);
     setError('');
     try {
-      const post = await postsApi.create(token, {
+      const post = await postsApi.create({
         title,
         body,
         section,

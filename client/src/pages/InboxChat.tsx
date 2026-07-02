@@ -2,7 +2,6 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { messagesApi } from '@/shared/api';
 import { useAuth } from '@/shared/components/AuthProvider';
-import { getStoredToken } from '@/shared/components/AuthProvider';
 
 type MsgRow = { id: string; body: string; createdAt: string; senderId: string };
 
@@ -37,15 +36,8 @@ export default function InboxChat() {
     setOtherName('');
     setOtherUsername('');
 
-    const token = getStoredToken();
-    if (!token) {
-      setLoading(false);
-      setError('Not signed in. Log in again to send messages.');
-      return;
-    }
-
     messagesApi
-      .thread(token, userId)
+      .thread(userId)
       .then((data) => {
         if (cancelled) return;
         setOtherName(data.otherUser.name);
@@ -68,14 +60,13 @@ export default function InboxChat() {
 
   async function handleSend(e: FormEvent) {
     e.preventDefault();
-    const token = getStoredToken();
-    if (!token || !userId || !text.trim()) return;
+    if (!user || !userId || !text.trim()) return;
     setSending(true);
     setError('');
     try {
-      await messagesApi.send(token, userId, text.trim());
+      await messagesApi.send(userId, text.trim());
       setText('');
-      const data = await messagesApi.thread(token, userId);
+      const data = await messagesApi.thread(userId);
       setOtherName(data.otherUser.name);
       setOtherUsername(data.otherUser.username);
       setMessages(data.messages as MsgRow[]);

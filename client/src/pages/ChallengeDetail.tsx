@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { challengesApi, type ChallengeCreatedBy } from '@/shared/api/challenges';
-import { useAuth, getStoredToken } from '@/shared/components/AuthProvider';
+import { useAuth } from '@/shared/components/AuthProvider';
 
 type TimelineMeta = {
   submissionsOpen: boolean;
@@ -64,13 +64,13 @@ function formatDuration(ms: number): string {
 function SubmissionCard({
   challengeId,
   submission,
-  token,
+  loggedIn,
   onLikeUpdate,
   onCommentAdded,
 }: {
   challengeId: string;
   submission: Submission;
-  token: string | null;
+  loggedIn: boolean;
   onLikeUpdate: (submissionId: string, liked: boolean, likeCount: number) => void;
   onCommentAdded: (submissionId: string) => void;
 }) {
@@ -86,22 +86,22 @@ function SubmissionCard({
   const loadComments = useCallback(async () => {
     setLoadingComments(true);
     try {
-      const list = await challengesApi.listSubmissionComments(challengeId, submission.id, token);
+      const list = await challengesApi.listSubmissionComments(challengeId, submission.id);
       setComments(list);
     } finally {
       setLoadingComments(false);
     }
-  }, [challengeId, submission.id, token]);
+  }, [challengeId, submission.id]);
 
   useEffect(() => {
     if (expanded && comments.length === 0 && !loadingComments) loadComments();
   }, [expanded, comments.length, loadingComments, loadComments]);
 
   async function handleLike() {
-    if (!token || likeBusy) return;
+    if (!loggedIn || likeBusy) return;
     setLikeBusy(true);
     try {
-      const r = await challengesApi.likeSubmission(token, challengeId, submission.id);
+      const r = await challengesApi.likeSubmission(challengeId, submission.id);
       onLikeUpdate(submission.id, r.liked, r.likeCount);
     } finally {
       setLikeBusy(false);
@@ -110,10 +110,10 @@ function SubmissionCard({
 
   async function handleComment(e: React.FormEvent) {
     e.preventDefault();
-    if (!token || !commentText.trim()) return;
+    if (!loggedIn || !commentText.trim()) return;
     setCommentBusy(true);
     try {
-      await challengesApi.addSubmissionComment(token, challengeId, submission.id, commentText.trim());
+      await challengesApi.addSubmissionComment(challengeId, submission.id, commentText.trim());
       setCommentText('');
       await loadComments();
       onCommentAdded(submission.id);
@@ -158,7 +158,7 @@ function SubmissionCard({
       <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-slate-800 pt-3">
         <button
           type="button"
-          disabled={!token || likeBusy}
+          disabled={!loggedIn || likeBusy}
           onClick={handleLike}
           className={`text-xs ${submission.likedByViewer ? 'text-brand-400' : 'text-slate-400 hover:text-brand-400'}`}
         >
@@ -186,7 +186,7 @@ function SubmissionCard({
               ))}
             </ul>
           )}
-          {token ? (
+          {loggedIn ? (
             <form onSubmit={handleComment} className="flex gap-2">
               <input
                 value={commentText}
@@ -213,7 +213,7 @@ function SubmissionCard({
 export default function ChallengeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, token: authToken } = useAuth();
+  const { user } = useAuth();
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [loading, setLoading] = useState(true);
   const [solutionUrl, setSolutionUrl] = useState('');
@@ -223,17 +223,16 @@ export default function ChallengeDetail() {
   const [message, setMessage] = useState('');
   const [tick, setTick] = useState(0);
 
-  const token = authToken ?? getStoredToken();
   const isGithubMode = (challenge?.submissionMode ?? 'GITHUB') === 'GITHUB';
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
     challengesApi
-      .get(id, token)
+      .get(id)
       .then((data) => setChallenge(data as Challenge))
       .finally(() => setLoading(false));
-  }, [id, user?.id, token]);
+  }, [id, user?.id]);
 
   useEffect(() => {
     if (!challenge?.timelineMeta?.hasDeadline) return;
@@ -283,8 +282,7 @@ export default function ChallengeDetail() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const t = getStoredToken();
-    if (!t || !user) {
+    if (!user) {
       navigate('/login');
       return;
     }
@@ -292,13 +290,13 @@ export default function ChallengeDetail() {
     setSubmitting(true);
     setMessage('');
     try {
-      await challengesApi.submit(t, id, {
+      await challengesApi.submit(id, {
         ...(isGithubMode
           ? { solutionUrl: solutionUrl.trim() }
           : { solutionText: solutionText.trim(), solutionLanguage: solutionLanguage.trim() || undefined }),
       });
       setMessage('Submission recorded!');
-      const updated = await challengesApi.get(id, t);
+      const updated = await challengesApi.get(id);
       setChallenge(updated as Challenge);
       setSolutionUrl('');
       setSolutionText('');
@@ -461,7 +459,7 @@ export default function ChallengeDetail() {
                   key={s.id}
                   challengeId={challenge.id}
                   submission={s}
-                  token={token}
+                  loggedIn={!!user}
                   onLikeUpdate={updateSubmissionLike}
                   onCommentAdded={incrementCommentCount}
                 />

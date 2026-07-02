@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/shared/components/AuthProvider';
 import { usersApi } from '@/shared/api';
-import { getStoredToken } from '@/shared/components/AuthProvider';
 import {
   DISCIPLINE_LABELS,
   DISCIPLINE_SKILL_HINTS,
@@ -37,16 +36,10 @@ export default function ProfileEdit() {
       setLoading(false);
       return;
     }
-    const token = getStoredToken();
-    if (!token) {
-      navigate('/login', { state: { from: '/profile/edit' } });
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     setError('');
     usersApi
-      .me(token)
+      .me()
       .then((data) => {
         const d = data as {
           name?: string;
@@ -85,8 +78,7 @@ export default function ProfileEdit() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const token = getStoredToken();
-    if (!token) return;
+    if (!user) return;
     setSaving(true);
     setError('');
     try {
@@ -95,7 +87,7 @@ export default function ProfileEdit() {
       if (behanceUrl.trim()) designLinks.behance = behanceUrl.trim();
       if (dribbbleUrl.trim()) designLinks.dribbble = dribbbleUrl.trim();
 
-      const updated = await usersApi.updateMe(token, {
+      const updated = await usersApi.updateMe({
         name: name.trim(),
         bio: bio.trim() || undefined,
         primaryDiscipline,

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { adminApi, challengesApi } from '@/shared/api';
-import { useAuth, getStoredToken } from '@/shared/components/AuthProvider';
+import { useAuth } from '@/shared/components/AuthProvider';
 
 type Overview = { users: number; posts: number; challenges: number; projects: number };
 type AdminPost = {
@@ -49,7 +49,6 @@ const SECTION_LABEL: Record<string, string> = {
 
 export default function Admin() {
   const { user, ready } = useAuth();
-  const token = getStoredToken();
   const [overview, setOverview] = useState<Overview | null>(null);
   const [posts, setPosts] = useState<AdminPost[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -70,17 +69,17 @@ export default function Admin() {
   const [banAppeals, setBanAppeals] = useState<Awaited<ReturnType<typeof adminApi.banAppeals>>>([]);
 
   const loadAll = useCallback(async () => {
-    if (!token) return;
+    if (!user?.isAdmin) return;
     setError('');
     try {
       const [ov, p, u, ch, pc, rep, appeals] = await Promise.all([
-        adminApi.overview(token),
-        adminApi.posts(token),
-        adminApi.users(token),
-        challengesApi.list(undefined, token),
-        adminApi.pendingCompanies(token),
-        adminApi.reports(token),
-        adminApi.banAppeals(token, 'PENDING'),
+        adminApi.overview(),
+        adminApi.posts(),
+        adminApi.users(),
+        challengesApi.list(),
+        adminApi.pendingCompanies(),
+        adminApi.reports(),
+        adminApi.banAppeals('PENDING'),
       ]);
       setOverview(ov);
       setPosts(p);
@@ -94,17 +93,17 @@ export default function Admin() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [user?.isAdmin]);
 
   useEffect(() => {
-    if (ready && user?.isAdmin && token) loadAll();
+    if (ready && user?.isAdmin) loadAll();
     else if (ready) setLoading(false);
-  }, [ready, user?.isAdmin, token, loadAll]);
+  }, [ready, user?.isAdmin, loadAll]);
 
   if (!ready || loading) {
     return <div className="mx-auto max-w-5xl px-6 py-16 text-center text-slate-400">Loading…</div>;
   }
-  if (!user || !token) {
+  if (!user) {
     return <Navigate to="/login" replace state={{ from: '/admin' }} />;
   }
   if (!user.isAdmin) {
@@ -118,11 +117,11 @@ export default function Admin() {
 
   async function handleCreateChallenge(e: React.FormEvent) {
     e.preventDefault();
-    if (!token) return;
+    if (!user?.isAdmin) return;
     setChSaving(true);
     setError('');
     try {
-      await challengesApi.create(token, {
+      await challengesApi.create({
         title: chTitle.trim(),
         description: chDesc.trim(),
         difficulty: chDiff,
@@ -145,9 +144,9 @@ export default function Admin() {
   }
 
   async function deletePost(id: string) {
-    if (!token || !confirm('Delete this post and all its comments?')) return;
+    if (!confirm('Delete this post and all its comments?')) return;
     try {
-      await adminApi.deletePost(token, id);
+      await adminApi.deletePost(id);
       setPosts((prev) => prev.filter((p) => p.id !== id));
       if (overview) setOverview({ ...overview, posts: overview.posts - 1 });
     } catch (e) {
@@ -156,9 +155,9 @@ export default function Admin() {
   }
 
   async function deleteUserRow(id: string, username: string) {
-    if (!token || !confirm(`Permanently delete user @${username} and their data (cascades)?`)) return;
+    if (!confirm(`Permanently delete user @${username} and their data (cascades)?`)) return;
     try {
-      await adminApi.deleteUser(token, id);
+      await adminApi.deleteUser(id);
       setUsers((prev) => prev.filter((u) => u.id !== id));
       if (overview) setOverview({ ...overview, users: overview.users - 1 });
     } catch (e) {
@@ -167,11 +166,10 @@ export default function Admin() {
   }
 
   async function toggleBanUser(u: AdminUser) {
-    if (!token) return;
     try {
       if (u.isBanned) {
         if (!window.confirm(`Unban @${u.username} and restore access?`)) return;
-        await adminApi.setUserBan(token, u.id, { banned: false });
+        await adminApi.setUserBan(u.id, { banned: false });
       } else {
         const reason = window.prompt(`Ban reason for @${u.username}:`, 'Spam or policy violation');
         if (reason === null) return;
@@ -187,7 +185,7 @@ export default function Admin() {
         }
         const durationLabel = banDays ? `${banDays} day(s)` : 'permanent';
         if (!window.confirm(`Ban @${u.username} (${durationLabel})? They cannot log in until restored.`)) return;
-        await adminApi.setUserBan(token, u.id, {
+        await adminApi.setUserBan(u.id, {
           banned: true,
           ...(reason.trim() ? { reason: reason.trim() } : {}),
           ...(banDays ? { banDays } : {}),
@@ -200,7 +198,6 @@ export default function Admin() {
   }
 
   async function banUserById(userId: string, username: string) {
-    if (!token) return;
     const reason = window.prompt(`Ban @${username} — reason:`, 'Actioned from abuse report');
     if (reason === null) return;
     const daysRaw = window.prompt('Temporary ban days (empty = permanent):', '7');
@@ -212,7 +209,7 @@ export default function Admin() {
     }
     if (!window.confirm(`Ban @${username}?`)) return;
     try {
-      await adminApi.setUserBan(token, userId, {
+      await adminApi.setUserBan(userId, {
         banned: true,
         ...(reason.trim() ? { reason: reason.trim() } : {}),
         ...(banDays ? { banDays } : {}),
@@ -224,11 +221,10 @@ export default function Admin() {
   }
 
   async function reviewAppeal(appealId: string, status: 'APPROVED' | 'REJECTED') {
-    if (!token) return;
     const adminNote = window.prompt('Optional note for the record:', '') ?? '';
     const unban = status === 'APPROVED' ? window.confirm('Also lift the ban and restore access?') : false;
     try {
-      await adminApi.reviewBanAppeal(token, appealId, {
+      await adminApi.reviewBanAppeal(appealId, {
         status,
         ...(adminNote.trim() ? { adminNote: adminNote.trim() } : {}),
         ...(status === 'APPROVED' ? { unban } : {}),
@@ -240,9 +236,9 @@ export default function Admin() {
   }
 
   async function deleteChallengeRow(id: string, title: string) {
-    if (!token || !confirm(`Delete challenge "${title}" and all submissions?`)) return;
+    if (!confirm(`Delete challenge "${title}" and all submissions?`)) return;
     try {
-      await adminApi.deleteChallenge(token, id);
+      await adminApi.deleteChallenge(id);
       setChallenges((prev) => prev.filter((c) => c.id !== id));
       if (overview) setOverview({ ...overview, challenges: overview.challenges - 1 });
     } catch (e) {
@@ -497,7 +493,7 @@ export default function Admin() {
                     type="button"
                     className="btn-primary text-xs"
                     onClick={async () => {
-                      await adminApi.verifyCompany(token!, c.id, { status: 'VERIFIED' });
+                      await adminApi.verifyCompany(c.id, { status: 'VERIFIED' });
                       await loadAll();
                     }}
                   >
@@ -507,7 +503,7 @@ export default function Admin() {
                     type="button"
                     className="btn-secondary text-xs"
                     onClick={async () => {
-                      await adminApi.verifyCompany(token!, c.id, { status: 'REJECTED', note: 'Could not confirm company' });
+                      await adminApi.verifyCompany(c.id, { status: 'REJECTED', note: 'Could not confirm company' });
                       await loadAll();
                     }}
                   >
@@ -558,8 +554,8 @@ export default function Admin() {
                 {r.details && <p className="mt-2 text-slate-400">{r.details}</p>}
                 {r.status === 'OPEN' && (
                   <div className="mt-2 flex flex-wrap gap-3">
-                    <button type="button" className="text-xs text-slate-400 hover:underline" onClick={async () => { await adminApi.updateReport(token!, r.id, 'DISMISSED'); await loadAll(); }}>Dismiss</button>
-                    <button type="button" className="text-xs text-red-400 hover:underline" onClick={async () => { await adminApi.updateReport(token!, r.id, 'ACTIONED'); await loadAll(); }}>Mark actioned</button>
+                    <button type="button" className="text-xs text-slate-400 hover:underline" onClick={async () => { await adminApi.updateReport(r.id, 'DISMISSED'); await loadAll(); }}>Dismiss</button>
+                    <button type="button" className="text-xs text-red-400 hover:underline" onClick={async () => { await adminApi.updateReport(r.id, 'ACTIONED'); await loadAll(); }}>Mark actioned</button>
                     {(r.targetUser || r.company) && (
                       <button
                         type="button"

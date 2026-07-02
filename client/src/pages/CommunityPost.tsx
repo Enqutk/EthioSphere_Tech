@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { adminApi, postsApi } from '@/shared/api';
-import { useAuth, getStoredToken } from '@/shared/components/AuthProvider';
+import { useAuth } from '@/shared/components/AuthProvider';
 import { FollowCreatorActions } from '@/shared/components/FollowCreatorActions';
 import { PulseStrip } from '@/shared/components/PulseStrip';
 
@@ -43,16 +43,14 @@ export default function CommunityPost() {
 
   useEffect(() => {
     if (!id) return;
-    const token = getStoredToken();
-    postsApi.get(id, token).then((data) => setPost(data as Post)).finally(() => setLoading(false));
+    postsApi.get(id).then((data) => setPost(data as Post)).finally(() => setLoading(false));
   }, [id]);
 
   async function handleVote(upvote: boolean) {
-    const token = getStoredToken();
-    if (!token || !user || !id || voteBusy) return;
+    if (!user || !id || voteBusy) return;
     setVoteBusy(true);
     try {
-      const r = await postsApi.vote(token, id, upvote);
+      const r = await postsApi.vote(id, upvote);
       setPost((p) =>
         p
           ? {
@@ -71,12 +69,11 @@ export default function CommunityPost() {
 
   async function handleSubmitComment(e: React.FormEvent) {
     e.preventDefault();
-    const token = getStoredToken();
-    if (!token || !user || !comment.trim() || !id) return;
+    if (!user || !comment.trim() || !id) return;
     setSubmitting(true);
     try {
-      await postsApi.addComment(token, id, { body: comment.trim() });
-      const updated = await postsApi.get(id, token);
+      await postsApi.addComment(id, { body: comment.trim() });
+      const updated = await postsApi.get(id);
       setPost(updated as Post);
       setComment('');
     } finally {
@@ -85,11 +82,10 @@ export default function CommunityPost() {
   }
 
   async function handleAdminDeletePost() {
-    const token = getStoredToken();
-    if (!token || !id || !user?.isAdmin) return;
+    if (!id || !user?.isAdmin) return;
     if (!confirm('Delete this post for everyone?')) return;
     try {
-      await adminApi.deletePost(token, id);
+      await adminApi.deletePost(id);
       navigate('/community', { replace: true });
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Could not delete');

@@ -69,7 +69,7 @@ const RANK_LABELS: Record<string, string> = {
 
 export default function Profile() {
   const { username } = useParams<{ username: string }>();
-  const { user: me, token } = useAuth();
+  const { user: me } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [companyData, setCompanyData] = useState<CompanyProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,12 +98,12 @@ export default function Profile() {
     setProfile(null);
     const u = username.trim().toLowerCase();
     usersApi
-      .getByUsername(u, token)
+      .getByUsername(u)
       .then(async (data) => {
         const p = data as Profile;
         setProfile(p);
         if (p.accountType === 'COMPANY') {
-          const cd = await companiesApi.get(u, token);
+          const cd = await companiesApi.get(u);
           setCompanyData(cd);
         } else {
           setCompanyData(null);
@@ -114,16 +114,16 @@ export default function Profile() {
         setError(err instanceof Error ? err.message : 'Could not load profile');
       })
       .finally(() => setLoading(false));
-  }, [username, token]);
+  }, [username]);
 
   async function reloadProfile() {
     if (!username?.trim()) return;
     const u = username.trim().toLowerCase();
-    const data = await usersApi.getByUsername(u, token);
+    const data = await usersApi.getByUsername(u);
     const p = data as Profile;
     setProfile(p);
     if (p.accountType === 'COMPANY') {
-      setCompanyData(await companiesApi.get(u, token));
+      setCompanyData(await companiesApi.get(u));
     }
   }
 
@@ -261,16 +261,16 @@ export default function Profile() {
                 <Link to="/profile/edit" className="btn-secondary text-sm">Edit profile</Link>
               </>
             )}
-            {!isOwn && token && (
+            {!isOwn && me && (
               <div className="flex flex-wrap gap-2">
                 {!isCompany && <Link to={`/inbox/${profile.id}`} className="btn-secondary text-sm">Message</Link>}
-                <ReportProfileButton token={token} targetUsername={profile.username} targetType={isCompany ? 'company' : 'user'} />
+                <ReportProfileButton targetUsername={profile.username} targetType={isCompany ? 'company' : 'user'} />
                 {!isCompany && (profile.followForViewer?.direction === 'none' || !profile.followForViewer ? (
                   <button
                     type="button"
                     className="btn-primary text-sm"
                     onClick={async () => {
-                      await followApi.follow(token, profile.username);
+                      await followApi.follow(profile.username);
                       await reloadProfile();
                     }}
                   >
@@ -282,7 +282,7 @@ export default function Profile() {
                     type="button"
                     className="btn-secondary text-sm"
                     onClick={async () => {
-                      await followApi.unfollow(token, profile.username);
+                      await followApi.unfollow(profile.username);
                       await reloadProfile();
                     }}
                   >
@@ -294,7 +294,7 @@ export default function Profile() {
                     type="button"
                     className="btn-secondary text-sm"
                     onClick={async () => {
-                      await followApi.unfollow(token, profile.username);
+                      await followApi.unfollow(profile.username);
                       await reloadProfile();
                     }}
                   >
@@ -306,7 +306,7 @@ export default function Profile() {
                     type="button"
                     className="btn-primary text-sm"
                     onClick={async () => {
-                      await followApi.follow(token, profile.username);
+                      await followApi.follow(profile.username);
                       await reloadProfile();
                     }}
                   >
@@ -320,7 +320,7 @@ export default function Profile() {
                       type="button"
                       className="btn-primary text-sm"
                       onClick={async () => {
-                        await followApi.accept(token, profile.followForViewer!.id!);
+                        await followApi.accept(profile.followForViewer!.id!);
                         await reloadProfile();
                       }}
                     >
@@ -330,7 +330,7 @@ export default function Profile() {
                       type="button"
                       className="btn-secondary text-sm"
                       onClick={async () => {
-                        await followApi.reject(token, profile.followForViewer!.id!);
+                        await followApi.reject(profile.followForViewer!.id!);
                         await reloadProfile();
                       }}
                     >
@@ -357,12 +357,12 @@ export default function Profile() {
                 <p className="text-2xl font-semibold text-slate-100">{companyData.company.likeCount}</p>
                 <p className="text-xs text-slate-500">trust likes</p>
               </div>
-              {!isOwn && token && (
+              {!isOwn && me && (
                 <button
                   type="button"
                   className={`btn-secondary text-sm ${companyData.company.viewerLiked ? 'border-brand-500 text-brand-400' : ''}`}
                   onClick={async () => {
-                    await companiesApi.toggleLike(token, profile.username);
+                    await companiesApi.toggleLike(profile.username);
                     await reloadProfile();
                   }}
                 >
@@ -371,7 +371,7 @@ export default function Profile() {
               )}
             </div>
 
-            {!isOwn && token && (
+            {!isOwn && me && (
               <form
                 className="mt-6 rounded-lg border border-slate-700 bg-surface-950/40 p-4"
                 onSubmit={async (e) => {
@@ -379,7 +379,7 @@ export default function Profile() {
                   setReviewSaving(true);
                   setReviewMsg('');
                   try {
-                    await companiesApi.review(token, profile.username, { rating: reviewRating, body: reviewBody.trim() });
+                    await companiesApi.review(profile.username, { rating: reviewRating, body: reviewBody.trim() });
                     setReviewMsg('Review saved.');
                     setReviewBody('');
                     await reloadProfile();

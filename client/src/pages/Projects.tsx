@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { projectsApi } from '@/shared/api';
-import { getStoredToken } from '@/shared/components/AuthProvider';
 import { PulseStrip } from '@/shared/components/PulseStrip';
 import { RolesNeededBadges } from '@/shared/components/RolesNeededPicker';
 
@@ -38,10 +37,9 @@ export default function Projects() {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    const token = getStoredToken();
     setLoading(true);
     projectsApi
-      .list(search ? { search } : undefined, token)
+      .list(search ? { search } : undefined)
       .then((page) => {
         setProjects(page.items as Project[]);
         setHasMore(page.pagination.hasMore);
@@ -52,10 +50,9 @@ export default function Projects() {
 
   const loadMore = () => {
     if (loadingMore || !hasMore || nextSkip == null) return;
-    const token = getStoredToken();
     setLoadingMore(true);
     projectsApi
-      .list({ ...(search ? { search } : {}), skip: nextSkip }, token)
+      .list({ ...(search ? { search } : {}), skip: nextSkip })
       .then((page) => {
         setProjects((prev) => [...prev, ...(page.items as Project[])]);
         setHasMore(page.pagination.hasMore);

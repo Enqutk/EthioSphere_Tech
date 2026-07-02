@@ -51,7 +51,7 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      const { user, token, githubNote } = await authApi.register({
+      const { user, githubNote } = await authApi.register({
         name,
         username: username.toLowerCase(),
         email,
@@ -69,7 +69,7 @@ export default function Register() {
             }
           : {}),
       });
-      login(user, token);
+      login(user);
       navigate(accountKind === 'company' ? '/settings#verification' : '/', {
         state: githubNote
           ? { banner: githubNote }

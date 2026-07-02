@@ -39,8 +39,8 @@ export default function Login() {
     setAppealSuccess('');
     setLoading(true);
     try {
-      const { user: nextUser, token } = await authApi.login({ email, password });
-      login(nextUser, token);
+      const { user: nextUser } = await authApi.login({ email, password });
+      login(nextUser);
       navigate(redirectTo, { replace: true });
     } catch (err: unknown) {
       if (err instanceof ApiError && err.body.code === 'ACCOUNT_BANNED') {

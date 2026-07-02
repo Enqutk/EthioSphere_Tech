@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '@/shared/components/AuthProvider';
+import { useAuth, mapSessionUser } from '@/shared/components/AuthProvider';
 import { usersApi } from '@/shared/api';
 
 export default function AuthCallback() {
@@ -22,49 +22,13 @@ export default function AuthCallback() {
       return;
     }
 
-    const token = searchParams.get('token');
-    if (!token) {
-      setError('Missing sign-in token. Please try again.');
-      return;
-    }
-
     const redirect = searchParams.get('redirect') || '/';
+    const dest = redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/';
 
     usersApi
-      .me(token)
+      .me()
       .then((profile) => {
-        const p = profile as {
-          id: string;
-          email: string;
-          username: string;
-          name: string;
-          rank: string;
-          avatarUrl?: string | null;
-          githubUrl?: string | null;
-          isAdmin?: boolean;
-          accountType?: 'DEVELOPER' | 'COMPANY';
-          primaryDiscipline?: string;
-          company?: unknown;
-          hasPassword?: boolean;
-          googleLinked?: boolean;
-        };
-        login(
-          {
-            id: p.id,
-            email: p.email,
-            username: p.username,
-            name: p.name,
-            rank: p.rank,
-            avatarUrl: p.avatarUrl,
-            githubUrl: p.githubUrl,
-            isAdmin: p.isAdmin,
-            accountType: p.accountType,
-            primaryDiscipline: p.primaryDiscipline as import('@/shared/api/types').PrimaryDiscipline,
-            company: p.company as import('@/shared/api/types').User['company'],
-          },
-          token,
-        );
-        const dest = redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/';
+        login(mapSessionUser(profile));
         navigate(dest, { replace: true });
       })
       .catch(() => setError('Could not complete sign-in. Please try again.'));

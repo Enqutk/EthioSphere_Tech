@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { usersApi, type DiscoverUser } from '@/shared/api';
-import { getStoredToken, useAuth } from '@/shared/components/AuthProvider';
+import { useAuth } from '@/shared/components/AuthProvider';
 import { FollowCreatorActions } from '@/shared/components/FollowCreatorActions';
 import { PRIMARY_DISCIPLINES, DISCIPLINE_LABELS } from '@/shared/constants/disciplines';
 
@@ -17,7 +17,7 @@ const SECTIONS: Record<string, string> = {
 };
 
 export default function FindBuddies() {
-  const { token } = useAuth();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const qParam = searchParams.get('q') ?? '';
   const skillParam = searchParams.get('skill') ?? '';
@@ -34,16 +34,12 @@ export default function FindBuddies() {
     setLoading(true);
     setError('');
     try {
-      const t = token ?? getStoredToken();
-      const list = await usersApi.discover(
-        {
+      const list = await usersApi.discover({
           q: qParam || undefined,
           skill: skillParam || undefined,
           discipline: disciplineParam || undefined,
           limit: 32,
-        },
-        t,
-      );
+        });
       setPeople(list);
     } catch (e) {
       setPeople([]);
@@ -51,7 +47,7 @@ export default function FindBuddies() {
     } finally {
       setLoading(false);
     }
-  }, [qParam, skillParam, disciplineParam, token]);
+  }, [qParam, skillParam, disciplineParam]);
 
   useEffect(() => {
     setQInput(qParam);
@@ -179,7 +175,7 @@ export default function FindBuddies() {
                 <FollowCreatorActions
                   username={u.username}
                   userId={u.id}
-                  initialFollowForViewer={token ? u.followForViewer ?? undefined : undefined}
+                  initialFollowForViewer={user ? u.followForViewer ?? undefined : undefined}
                   onChanged={load}
                   className="sm:justify-end"
                 />

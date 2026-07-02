@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { projectsApi } from '@/shared/api';
 import { useAuth } from '@/shared/components/AuthProvider';
-import { getStoredToken } from '@/shared/components/AuthProvider';
 import { FollowCreatorActions } from '@/shared/components/FollowCreatorActions';
 import { ReadmePreview } from '@/shared/components/ReadmePreview';
 import { PulseStrip } from '@/shared/components/PulseStrip';
@@ -126,16 +125,15 @@ export default function ProjectDetail() {
     if (!id) return;
     let cancelled = false;
     let refetchTimer: ReturnType<typeof setTimeout> | undefined;
-    const token = getStoredToken();
     projectsApi
-      .getDetail(id, token)
+      .getDetail(id)
       .then(({ project: data, githubRefreshing }) => {
         if (cancelled) return;
         setProject(data as Project);
         if (githubRefreshing) {
           refetchTimer = setTimeout(() => {
             if (cancelled) return;
-            projectsApi.getDetail(id, getStoredToken()).then(({ project: fresh }) => {
+            projectsApi.getDetail(id).then(({ project: fresh }) => {
               if (!cancelled) setProject(fresh as Project);
             }).catch(() => {});
           }, 4000);
@@ -176,8 +174,7 @@ export default function ProjectDetail() {
   }, [user?.primaryDiscipline]);
 
   async function handleJoin() {
-    const token = getStoredToken();
-    if (!token || !user) {
+    if (!user) {
       navigate('/login');
       return;
     }
@@ -185,8 +182,8 @@ export default function ProjectDetail() {
     setJoining(true);
     setError('');
     try {
-      await projectsApi.join(token, id, joinRole);
-      const updated = await projectsApi.get(id, getStoredToken());
+      await projectsApi.join(id, joinRole);
+      const updated = await projectsApi.get(id);
       setProject(updated as Project);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to join');
@@ -203,11 +200,10 @@ export default function ProjectDetail() {
   const isOwner = user?.id === project.owner.id;
 
   async function handleProjectLike() {
-    const token = getStoredToken();
-    if (!token || !id || likeBusy) return;
+    if (!user || !id || likeBusy) return;
     setLikeBusy(true);
     try {
-      const r = await projectsApi.like(token, id);
+      const r = await projectsApi.like(id);
       setProject((p) =>
         p ? { ...p, likedByViewer: r.liked, likeCount: r.likeCount, pulseScore: r.pulseScore } : p,
       );
@@ -217,16 +213,15 @@ export default function ProjectDetail() {
   }
 
   async function handleOwnerSave() {
-    const token = getStoredToken();
-    if (!token || !id) return;
+    if (!user || !id) return;
     setOwnerSaving(true);
     try {
-      await projectsApi.patch(token, id, {
+      await projectsApi.patch(id, {
         visibility: editVis,
         seekingReview: editSeeking,
         rolesNeeded: editRolesNeeded,
       });
-      const updated = await projectsApi.get(id, token);
+      const updated = await projectsApi.get(id);
       setProject(updated as Project);
     } finally {
       setOwnerSaving(false);

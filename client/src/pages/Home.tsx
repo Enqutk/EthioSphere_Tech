@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { postsApi, projectsApi } from '@/shared/api';
-import { useAuth, getStoredToken } from '@/shared/components/AuthProvider';
+import { useAuth } from '@/shared/components/AuthProvider';
 import { RolesNeededBadges } from '@/shared/components/RolesNeededPicker';
 
 type Module = {
@@ -64,12 +64,11 @@ export default function Home() {
   const [feedLoading, setFeedLoading] = useState(true);
 
   useEffect(() => {
-    const token = getStoredToken();
     let cancelled = false;
     setFeedLoading(true);
     Promise.all([
-      postsApi.list({ take: PREVIEW_COUNT }, token),
-      projectsApi.list({ take: PREVIEW_COUNT }, token),
+      postsApi.list({ take: PREVIEW_COUNT }),
+      projectsApi.list({ take: PREVIEW_COUNT }),
     ])
       .then(([postsPage, projectsPage]) => {
         if (cancelled) return;

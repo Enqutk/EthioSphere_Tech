@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { projectsApi } from '@/shared/api';
 import { useAuth } from '@/shared/components/AuthProvider';
-import { getStoredToken } from '@/shared/components/AuthProvider';
 import { RolesNeededPicker } from '@/shared/components/RolesNeededPicker';
 import type { ProjectTeamRole } from '@/shared/constants/disciplines';
 
@@ -26,12 +25,11 @@ export default function ProjectNew() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const token = getStoredToken();
-    if (!token) return;
+    if (!user) return;
     setLoading(true);
     setError('');
     try {
-      const project = await projectsApi.create(token, {
+      const project = await projectsApi.create({
         githubRepoUrl: githubRepoUrl.trim(),
         ...(title.trim() ? { title: title.trim() } : {}),
         ...(description.trim() ? { description: description.trim() } : {}),

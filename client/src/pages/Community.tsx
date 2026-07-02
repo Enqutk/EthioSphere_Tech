@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { postsApi } from '@/shared/api';
-import { getStoredToken } from '@/shared/components/AuthProvider';
 import { PulseStrip } from '@/shared/components/PulseStrip';
 
 type Post = {
@@ -35,10 +34,9 @@ export default function Community() {
   const [section, setSection] = useState('');
 
   useEffect(() => {
-    const token = getStoredToken();
     setLoading(true);
     postsApi
-      .list(section ? { section } : undefined, token)
+      .list(section ? { section } : undefined)
       .then((page) => {
         setPosts(page.items as Post[]);
         setHasMore(page.pagination.hasMore);
@@ -49,10 +47,9 @@ export default function Community() {
 
   const loadMore = () => {
     if (loadingMore || !hasMore || nextSkip == null) return;
-    const token = getStoredToken();
     setLoadingMore(true);
     postsApi
-      .list({ ...(section ? { section } : {}), skip: nextSkip }, token)
+      .list({ ...(section ? { section } : {}), skip: nextSkip })
       .then((page) => {
         setPosts((prev) => [...prev, ...(page.items as Post[])]);
         setHasMore(page.pagination.hasMore);

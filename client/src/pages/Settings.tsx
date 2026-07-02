@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/shared/components/AuthProvider';
-import { getStoredToken } from '@/shared/components/AuthProvider';
 import { usersApi, companiesApi } from '@/shared/api';
 import type { NotificationPrefs } from '@/shared/api/users';
 import { authApi } from '@/shared/api/auth';
@@ -108,20 +107,15 @@ export default function Settings() {
       navigate('/login', { state: { from: '/settings' } });
       return;
     }
-    const token = getStoredToken();
-    if (!token) {
-      navigate('/login', { state: { from: '/settings' } });
-      return;
-    }
     setLoading(true);
     setError('');
     usersApi
-      .me(token)
+      .me()
       .then(async (raw) => {
         const d = raw as SettingsData;
         if (d.accountType === 'COMPANY' && !d.company) {
           try {
-            d.company = await companiesApi.me(token);
+            d.company = await companiesApi.me();
           } catch {
             /* company record may be missing */
           }
@@ -162,11 +156,9 @@ export default function Settings() {
       setError('New passwords do not match.');
       return;
     }
-    const token = getStoredToken();
-    if (!token) return;
     setPasswordSaving(true);
     try {
-      await usersApi.changePassword(token, {
+      await usersApi.changePassword({
         currentPassword: data?.hasPassword ? currentPassword : undefined,
         newPassword,
       });
@@ -184,13 +176,11 @@ export default function Settings() {
 
   async function savePrefs() {
     if (!prefs) return;
-    const token = getStoredToken();
-    if (!token) return;
     setPrefsSaving(true);
     setMsg('');
     setError('');
     try {
-      await usersApi.updateSettings(token, { notificationPrefs: prefs });
+      await usersApi.updateSettings({ notificationPrefs: prefs });
       setMsg('Notification preferences saved.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save preferences');
@@ -201,13 +191,11 @@ export default function Settings() {
 
   async function saveCompany(e: React.FormEvent) {
     e.preventDefault();
-    const token = getStoredToken();
-    if (!token) return;
     setCompanySaving(true);
     setMsg('');
     setError('');
     try {
-      const updated = await companiesApi.updateMe(token, { legalName, website, description });
+      const updated = await companiesApi.updateMe({ legalName, website, description });
       setData((d) =>
         d ? { ...d, name: updated.legalName, company: { ...d.company!, ...updated } } : d,
       );
@@ -221,13 +209,11 @@ export default function Settings() {
   }
 
   async function applyVerification() {
-    const token = getStoredToken();
-    if (!token) return;
     setVerifySaving(true);
     setMsg('');
     setError('');
     try {
-      const res = await companiesApi.applyVerification(token, { message: verifyMessage });
+      const res = await companiesApi.applyVerification({ message: verifyMessage });
       setData((d) => (d?.company ? { ...d, company: { ...d.company, ...res.company } } : d));
       setMsg(res.message);
       setVerifyMessage('');

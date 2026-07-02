@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { followApi, messagesApi } from '@/shared/api';
 import { useAuth } from '@/shared/components/AuthProvider';
-import { getStoredToken } from '@/shared/components/AuthProvider';
 
 type Tab = 'messages' | 'requests';
 
@@ -32,16 +31,10 @@ export default function Inbox() {
       navigate('/login', { state: { from: '/inbox' } });
       return;
     }
-    const token = getStoredToken();
-    if (!token) {
-      setLoading(false);
-      navigate('/login', { state: { from: '/inbox' } });
-      return;
-    }
     let cancelled = false;
     setLoading(true);
     setLoadError('');
-    Promise.all([messagesApi.inbox(token), followApi.incoming(token)])
+    Promise.all([messagesApi.inbox(), followApi.incoming()])
       .then(([t, r]) => {
         if (cancelled) return;
         setThreads(t);
@@ -62,16 +55,14 @@ export default function Inbox() {
   }, [user, ready, navigate]);
 
   async function handleAccept(id: string) {
-    const token = getStoredToken();
-    if (!token) return;
-    await followApi.accept(token, id);
+    if (!user) return;
+    await followApi.accept(id);
     setRequests((prev) => prev.filter((x) => x.id !== id));
   }
 
   async function handleReject(id: string) {
-    const token = getStoredToken();
-    if (!token) return;
-    await followApi.reject(token, id);
+    if (!user) return;
+    await followApi.reject(id);
     setRequests((prev) => prev.filter((x) => x.id !== id));
   }
 

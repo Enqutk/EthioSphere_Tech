@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { challengesApi, type ChallengeCreatedBy } from '@/shared/api/challenges';
-import { useAuth, getStoredToken } from '@/shared/components/AuthProvider';
+import { useAuth } from '@/shared/components/AuthProvider';
 
 type Challenge = {
   id: string;
@@ -26,9 +26,8 @@ export default function Challenges() {
 
   useEffect(() => {
     if (!ready) return;
-    const token = getStoredToken();
     challengesApi
-      .list(undefined, token)
+      .list()
       .then((data) => {
         setChallenges(data.challenges as Challenge[]);
         setCanCreate(data.canCreateChallenge);

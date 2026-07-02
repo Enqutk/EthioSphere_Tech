@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { challengesApi } from '@/shared/api';
-import { useAuth, getStoredToken } from '@/shared/components/AuthProvider';
+import { useAuth } from '@/shared/components/AuthProvider';
 
 export default function ChallengeNew() {
   const navigate = useNavigate();
   const { user, ready } = useAuth();
-  const token = getStoredToken();
   const isCompany = user?.accountType === 'COMPANY';
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -21,7 +20,7 @@ export default function ChallengeNew() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!token) return;
+    if (!user) return;
     setSaving(true);
     setError('');
     const langs = requiredLanguages
@@ -29,7 +28,7 @@ export default function ChallengeNew() {
       .map((s) => s.trim())
       .filter(Boolean);
     try {
-      const created = await challengesApi.create(token, {
+      const created = await challengesApi.create({
         title: title.trim(),
         description: description.trim(),
         difficulty,
@@ -52,7 +51,7 @@ export default function ChallengeNew() {
   if (!ready) {
     return <div className="mx-auto max-w-xl px-6 py-16 text-center text-slate-400">Loading…</div>;
   }
-  if (!user || !token) {
+  if (!user) {
     return (
       <div className="mx-auto max-w-xl px-6 py-16 text-center">
         <p className="text-slate-300">Log in to author a challenge.</p>
