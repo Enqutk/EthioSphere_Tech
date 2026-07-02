@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
 import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
 import { sendRouteError } from '../lib/dbErrors.js';
@@ -10,46 +9,22 @@ import { parseGithubUserLogin, fetchGithubUser, inferRankFromGithub } from '../l
 import { resolveActiveBan, banStatusPayload } from '../lib/banHelpers.js';
 import { parsePrimaryDiscipline } from '../lib/disciplines.js';
 import { parseGender, parseDateOfBirth } from '../lib/demographics.js';
-import { getClientOrigin, getJwtSecret } from '../config/index.js';
+import { getClientOrigin } from '../config/index.js';
 import { createPasswordResetToken, consumePasswordResetToken } from '../lib/passwordReset.js';
 import { sendPasswordResetEmail } from '../lib/email.js';
-
-const FORGOT_PASSWORD_MESSAGE =
-  'If an account exists with that email, you will receive password reset instructions shortly.';
+import { signedOAuthState, verifySignedOAuthState } from '../lib/oauthState.js';
 import {
   isGoogleOAuthConfigured,
   buildGoogleAuthUrl,
-  createOAuthState,
   exchangeGoogleCode,
   fetchGoogleUserInfo,
   suggestUniqueUsername,
 } from '../lib/googleOAuth.js';
 
+const FORGOT_PASSWORD_MESSAGE =
+  'If an account exists with that email, you will receive password reset instructions shortly.';
+
 export const authRouter = Router();
-
-function signedOAuthState(extra = {}) {
-  const payload = { ts: Date.now(), nonce: createOAuthState(), ...extra };
-  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const sig = crypto.createHmac('sha256', getJwtSecret()).update(body).digest('base64url');
-  return `${body}.${sig}`;
-}
-
-function verifySignedOAuthState(state) {
-  if (!state || typeof state !== 'string') return null;
-  const dot = state.lastIndexOf('.');
-  if (dot <= 0) return null;
-  const body = state.slice(0, dot);
-  const sig = state.slice(dot + 1);
-  const expected = crypto.createHmac('sha256', getJwtSecret()).update(body).digest('base64url');
-  if (sig !== expected) return null;
-  try {
-    const data = JSON.parse(Buffer.from(body, 'base64url').toString());
-    if (!data.ts || Date.now() - data.ts > 15 * 60 * 1000) return null;
-    return data;
-  } catch {
-    return null;
-  }
-}
 
 function authUserSelect() {
   return {

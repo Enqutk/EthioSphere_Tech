@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import bcrypt from 'bcryptjs';
 import { createApp } from '../app.js';
 import { prisma } from '../lib/prisma.js';
-import { hasDatabaseUrl, startTestServer, requestJson, parseSetCookie } from '../test/httpHelpers.js';
+import { hasDatabaseUrl, startTestServer, requestJson, parseSetCookie, validRegisterBody } from '../test/httpHelpers.js';
 import { SESSION_COOKIE_NAME } from '../lib/sessionCookie.js';
 import { hashResetToken } from '../lib/passwordReset.js';
 
 let server;
 
 before(async () => {
-  process.env.NODE_ENV = 'development';
+  process.env.NODE_ENV = 'test';
   server = await startTestServer(createApp);
 });
 
@@ -178,6 +178,77 @@ describe('POST /api/auth with database', { skip: !hasDatabaseUrl() }, () => {
     assert.equal(status, 403);
     assert.equal(body.code, 'ACCOUNT_BANNED');
 
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        isBanned: false,
+        bannedAt: null,
+        banReason: null,
+        banExpiresAt: null,
+      },
+    });
+  });
+
+  test('register creates account and session cookie', async () => {
+    const payload = validRegisterBody();
+    const { status, body, headers } = await requestJson(server.baseUrl, '/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    assert.equal(status, 201);
+    assert.equal(body.user.email, payload.email);
+    assert.equal(body.user.username, payload.username.toLowerCase());
+    const cookie = parseSetCookie(headers.getSetCookie?.() || headers.get('set-cookie'));
+    assert.equal(cookie?.name, SESSION_COOKIE_NAME);
+
+    await prisma.user.delete({ where: { email: payload.email } }).catch(() => {});
+  });
+
+  test('register rejects duplicate email', async () => {
+    const payload = validRegisterBody({ email, username: `dup${Date.now()}` });
+    const { status, body } = await requestJson(server.baseUrl, '/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    assert.equal(status, 400);
+    assert.match(body.error, /already in use/i);
+  });
+
+  test('ban-appeal accepts suspended account appeal', async () => {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        isBanned: true,
+        bannedAt: new Date(),
+        banReason: 'Test suspension for appeal',
+        banExpiresAt: null,
+      },
+    });
+
+    const appealRes = await requestJson(server.baseUrl, '/api/auth/ban-appeal', {
+      method: 'POST',
+      body: JSON.stringify({
+        email,
+        password: currentPassword,
+        message: 'This is my formal appeal explaining why the ban should be reviewed.',
+      }),
+    });
+    assert.equal(appealRes.status, 201);
+    assert.equal(appealRes.body.ok, true);
+
+    const duplicate = await requestJson(server.baseUrl, '/api/auth/ban-appeal', {
+      method: 'POST',
+      body: JSON.stringify({
+        email,
+        password: currentPassword,
+        message: 'Second appeal attempt should be rejected as duplicate pending.',
+      }),
+    });
+    assert.equal(duplicate.status, 409);
+    assert.equal(duplicate.body.code, 'APPEAL_PENDING');
+
+    await prisma.banAppeal.deleteMany({ where: { userId } });
     await prisma.user.update({
       where: { id: userId },
       data: {

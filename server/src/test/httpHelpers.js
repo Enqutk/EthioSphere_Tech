@@ -49,3 +49,21 @@ export function parseSetCookie(setCookieHeader) {
   if (!match) return null;
   return { name: match[1], value: match[2] };
 }
+
+export function sessionAuthHeaders(token) {
+  return { Cookie: `pw_session=${token}` };
+}
+
+export function validRegisterBody(overrides = {}) {
+  const ts = Date.now();
+  return {
+    email: `reg-${ts}@example.com`,
+    password: 'testpass123',
+    name: 'Register Test',
+    username: `regtest${ts}`,
+    agreedToTerms: true,
+    dateOfBirth: '2000-01-01',
+    gender: 'PREFER_NOT_TO_SAY',
+    ...overrides,
+  };
+}

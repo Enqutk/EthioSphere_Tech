@@ -35,27 +35,29 @@ export function createApp() {
 
   const rateLimitOpts = process.env.VERCEL ? { validate: { xForwardedForHeader: false } } : {};
 
-  const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 10,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Too many auth attempts, please try again later.' },
-    ...rateLimitOpts,
-  });
+  if (process.env.NODE_ENV !== 'test') {
+    const authLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 10,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Too many auth attempts, please try again later.' },
+      ...rateLimitOpts,
+    });
 
-  const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Too many requests, please try again later.' },
-    skip: (req) => req.originalUrl.startsWith('/api/auth'),
-    ...rateLimitOpts,
-  });
+    const apiLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 100,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Too many requests, please try again later.' },
+      skip: (req) => req.originalUrl.startsWith('/api/auth'),
+      ...rateLimitOpts,
+    });
 
-  app.use('/api/auth', authLimiter);
-  app.use('/api', apiLimiter);
+    app.use('/api/auth', authLimiter);
+    app.use('/api', apiLimiter);
+  }
 
   app.get('/', (req, res) => {
     res.json({ ok: true, message: 'Programmers World API', health: '/api/health' });
