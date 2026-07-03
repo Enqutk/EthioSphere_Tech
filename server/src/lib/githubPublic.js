@@ -39,6 +39,20 @@ export async function githubFetchJson(path) {
 /** GitHub username login rules (simplified) */
 const LOGIN_RE = /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,38})$/;
 
+/** Hide AI/tooling bots from the project contributors panel (not real project teammates). */
+export function isIgnoredGithubContributor(login) {
+  if (!login || typeof login !== 'string') return true;
+  const normalized = login.toLowerCase();
+  if (normalized === 'cursor' || normalized === 'cursoragent') return true;
+  if (normalized.startsWith('cursor') && normalized.endsWith('[bot]')) return true;
+  return false;
+}
+
+export function filterGithubContributors(contributors) {
+  if (!Array.isArray(contributors)) return [];
+  return contributors.filter((c) => !isIgnoredGithubContributor(c?.login));
+}
+
 const RESERVED_USER_PATHS = new Set([
   'orgs',
   'settings',
@@ -206,14 +220,16 @@ export async function fetchRepoContributors(owner, repo) {
     `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contributors?per_page=40`,
   );
   if (!r.ok || !Array.isArray(r.data)) return [];
-  return r.data.map((c) => ({
-    login: c.login,
-    id: c.id,
-    contributions: c.contributions,
-    avatar_url: c.avatar_url,
-    html_url: c.html_url,
-    type: c.type,
-  }));
+  return filterGithubContributors(
+    r.data.map((c) => ({
+      login: c.login,
+      id: c.id,
+      contributions: c.contributions,
+      avatar_url: c.avatar_url,
+      html_url: c.html_url,
+      type: c.type,
+    })),
+  );
 }
 
 /**
