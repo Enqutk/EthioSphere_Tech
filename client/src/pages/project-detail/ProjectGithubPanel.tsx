@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import type { GithubDataBundle, GithubRepoInfo } from './types';
 import { LanguageBars } from './LanguageBars';
+import { visibleGithubContributors } from '@/shared/lib/githubContributors';
 
 const ReadmePreview = lazy(() =>
   import('@/shared/components/ReadmePreview').then((m) => ({ default: m.ReadmePreview })),
@@ -37,6 +38,8 @@ export function ProjectGithubPanel({ githubFullName, githubHtmlUrl, gh, repo, la
   }
 
   if (!repo) return null;
+
+  const contributors = visibleGithubContributors(gh?.contributors);
 
   return (
     <div className="mt-8 space-y-8 border-t border-slate-700 pt-8">
@@ -138,11 +141,11 @@ export function ProjectGithubPanel({ githubFullName, githubHtmlUrl, gh, repo, la
         </div>
       )}
 
-      {gh?.contributors && gh.contributors.length > 0 && (
+      {contributors.length > 0 && (
         <div>
           <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Contributors</h3>
           <ul className="mt-3 flex flex-wrap gap-3">
-            {gh.contributors.map((c) => (
+            {contributors.map((c) => (
               <li key={c.login}>
                 {c.html_url ? (
                   <a
