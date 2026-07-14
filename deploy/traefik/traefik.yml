@@ -1,8 +1,23 @@
-# Traefik static config — listens inside the container on :80
-# Host maps that to public port 8080 (see docker-compose.yml).
+# Traefik static config — HTTP (:80) + HTTPS (:443) with Let's Encrypt
 entryPoints:
   web:
     address: ':80'
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ':443'
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      # Change to your real email on the VPS if you want expiry notices
+      email: admin@aklildr.com
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
 
 providers:
   file:
