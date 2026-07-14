@@ -1,0 +1,39 @@
+# Personal VPS practice deploy for Programmers World only.
+# Does not touch ~/aklil or pm2 process "aklil".
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy Programmers World over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: 35.159.83.79
+          username: ubuntu
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            APP_DIR="$HOME/programmers-world"
+            if [ ! -d "$APP_DIR" ]; then
+              echo "Missing $APP_DIR — run the one-time manual clone + .env setup first."
+              exit 1
+            fi
+            cd "$APP_DIR"
+            git pull origin main
+            cd server
+            npm ci
+            npm run build
+            npx prisma db push
+            cd ../client
+            npm ci
+            npm run build
+            pm2 restart programmers-world-api
+            pm2 restart programmers-world-web
+            curl -sf http://127.0.0.1:4000/api/health
+            curl -sI http://127.0.0.1:3001 | head -n 1
