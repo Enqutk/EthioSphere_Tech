@@ -1,0 +1,16 @@
+# Traefik static config — listens inside the container on :80
+# Host maps that to public port 8080 (see docker-compose.yml).
+entryPoints:
+  web:
+    address: ':80'
+
+providers:
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+api:
+  dashboard: false
+
+log:
+  level: INFO
