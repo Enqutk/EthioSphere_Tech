@@ -1,0 +1,26 @@
+# Routes public :8080 traffic to pm2 apps on the VPS host.
+# API = 8081, Vite preview = 8082 (bound to localhost only).
+http:
+  routers:
+    api:
+      rule: PathPrefix(`/api`)
+      entryPoints:
+        - web
+      service: api
+      priority: 100
+    frontend:
+      rule: PathPrefix(`/`)
+      entryPoints:
+        - web
+      service: frontend
+      priority: 1
+
+  services:
+    api:
+      loadBalancer:
+        servers:
+          - url: http://host.docker.internal:8081
+    frontend:
+      loadBalancer:
+        servers:
+          - url: http://host.docker.internal:8082
