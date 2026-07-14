@@ -1,19 +1,22 @@
-# Routes public :8080 traffic to pm2 apps on the VPS host.
-# API = 8081, Vite preview = 8082 (bound to localhost only).
+# Routes https://pw.aklildr.com → API :8081 and frontend :8082 on the host
 http:
   routers:
     api:
-      rule: PathPrefix(`/api`)
+      rule: Host(`pw.aklildr.com`) && PathPrefix(`/api`)
       entryPoints:
-        - web
+        - websecure
       service: api
       priority: 100
+      tls:
+        certResolver: letsencrypt
     frontend:
-      rule: PathPrefix(`/`)
+      rule: Host(`pw.aklildr.com`)
       entryPoints:
-        - web
+        - websecure
       service: frontend
       priority: 1
+      tls:
+        certResolver: letsencrypt
 
   services:
     api:
