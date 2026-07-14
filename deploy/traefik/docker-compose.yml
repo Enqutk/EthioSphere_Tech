@@ -1,0 +1,14 @@
+# Programmers World — Traefik only (keeps aklil / other apps untouched).
+# Public: http://VPS_IP:8080  →  /api → host:8081,  / → host:8082
+services:
+  traefik:
+    image: traefik:v3.3
+    container_name: programmers-world-traefik
+    restart: unless-stopped
+    ports:
+      - '8080:80'
+    volumes:
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./dynamic.yml:/etc/traefik/dynamic.yml:ro
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
