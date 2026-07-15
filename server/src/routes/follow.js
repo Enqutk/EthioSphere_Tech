@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { sendRouteError } from '../lib/dbErrors.js';
 import { requireAuth } from '../middleware/auth.js';
+import { notifyFollowRequest, notifyFollowAccepted } from '../services/notifications.js';
 
 export const followRouter = Router();
 
@@ -32,6 +33,12 @@ followRouter.post('/requests/:id/accept', requireAuth, async (req, res) => {
       where: { id: row.id },
       data: { status: 'ACCEPTED' },
       include: { follower: { select: userMiniSelect } },
+    });
+    void notifyFollowAccepted({
+      followerId: updated.followerId,
+      actorId: req.user.id,
+      actorName: req.user.name,
+      actorUsername: req.user.username,
     });
     res.json(updated);
   } catch (err) {
@@ -108,6 +115,11 @@ followRouter.post('/user/:username', requireAuth, async (req, res) => {
         data: { status: 'PENDING' },
         include: { followee: { select: userMiniSelect } },
       });
+      void notifyFollowRequest({
+        followeeId: target.id,
+        actorId: req.user.id,
+        actorName: req.user.name,
+      });
       return res.status(201).json(updated);
     }
 
@@ -118,6 +130,11 @@ followRouter.post('/user/:username', requireAuth, async (req, res) => {
         status: 'PENDING',
       },
       include: { followee: { select: userMiniSelect } },
+    });
+    void notifyFollowRequest({
+      followeeId: target.id,
+      actorId: req.user.id,
+      actorName: req.user.name,
     });
     res.status(201).json(created);
   } catch (err) {
