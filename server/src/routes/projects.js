@@ -4,6 +4,7 @@ import { sendRouteError } from '../lib/dbErrors.js';
 import { parseListPagination } from '../lib/pagination.js';
 import { viewerKeyFromRequest } from '../lib/viewerKey.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
+import { notifyProjectLike } from '../services/notifications.js';
 import {
   listProjectsForViewer,
   getProjectDetailForViewer,
@@ -52,6 +53,15 @@ projectsRouter.post('/:id/like', requireAuth, async (req, res) => {
   try {
     const out = await toggleProjectLike(req.params.id, req.user.id);
     if (out.notFound) return res.status(404).json({ error: 'Project not found' });
+    if (out.likedNow && out.project) {
+      void notifyProjectLike({
+        ownerId: out.project.ownerId,
+        actorId: req.user.id,
+        actorName: req.user.name,
+        projectId: out.project.id,
+        projectTitle: out.project.title,
+      });
+    }
     res.json(out.payload);
   } catch (err) {
     sendRouteError(res, err, 'POST /api/projects/:id/like', 'Could not update like');
