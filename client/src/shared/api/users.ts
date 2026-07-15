@@ -7,6 +7,7 @@ export type NotificationPrefs = {
   emailOnChallenge: boolean;
   emailOnProjectInvite: boolean;
   emailOnCommunityReply: boolean;
+  pushEnabled: boolean;
 };
 
 export const usersApi = {
