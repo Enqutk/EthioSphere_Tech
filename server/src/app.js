@@ -15,6 +15,7 @@ import { followRouter } from './routes/follow.js';
 import { companiesRouter } from './routes/companies.js';
 import { reportsRouter } from './routes/reports.js';
 import { adminRouter } from './routes/admin.js';
+import { notificationsRouter } from './routes/notifications.js';
 
 /**
  * Build the Express application (routes, middleware). Separated from listen() for clarity and tests.
@@ -84,6 +85,7 @@ export function createApp() {
   app.use('/api/companies', companiesRouter);
   app.use('/api/reports', reportsRouter);
   app.use('/api/admin', adminRouter);
+  app.use('/api/notifications', notificationsRouter);
 
   app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 
