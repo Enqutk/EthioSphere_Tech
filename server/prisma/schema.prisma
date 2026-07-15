@@ -70,6 +70,55 @@ model User {
   blocksIncoming    UserBlock[] @relation("BlocksIncoming")
   dmMutesOutgoing   DmMute[]    @relation("DmMutesOutgoing")
   dmMutesIncoming   DmMute[]    @relation("DmMutesIncoming")
+  notificationsReceived Notification[] @relation("NotificationRecipient")
+  notificationsActed    Notification[] @relation("NotificationActor")
+  fcmDeviceTokens       FcmDeviceToken[]
+}
+
+enum NotificationType {
+  MESSAGE
+  PROJECT_LIKE
+  COMPANY_LIKE
+  FOLLOW_REQUEST
+  FOLLOW_ACCEPTED
+  POST_COMMENT
+  POST_REPLY
+  SUBMISSION_LIKE
+  SUBMISSION_COMMENT
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String           @map("user_id")
+  actorId    String?          @map("actor_id")
+  type       NotificationType
+  title      String
+  body       String?
+  linkUrl    String?          @map("link_url")
+  entityType String?          @map("entity_type")
+  entityId   String?          @map("entity_id")
+  readAt     DateTime?        @map("read_at")
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  user  User  @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+model FcmDeviceToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("fcm_device_tokens")
 }
 
 enum Rank {
