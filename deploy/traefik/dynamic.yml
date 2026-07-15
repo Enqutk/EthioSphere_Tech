@@ -1,8 +1,15 @@
-
 http:
   routers:
     api:
       rule: Host(`pw.aklildr.com`) && PathPrefix(`/api`)
+      entryPoints:
+        - websecure
+      service: api
+      priority: 100
+      tls:
+        certResolver: letsencrypt
+    socket:
+      rule: Host(`pw.aklildr.com`) && PathPrefix(`/socket.io`)
       entryPoints:
         - websecure
       service: api
