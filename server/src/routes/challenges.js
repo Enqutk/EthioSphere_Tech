@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { sendRouteError } from '../lib/dbErrors.js';
 import { isUniqueConstraintError } from '../lib/prismaErrors.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
+import { notifySubmissionLike, notifySubmissionComment } from '../services/notifications.js';
 import { canUserCreateChallenge, challengeCreateRequirementText } from '../lib/challengeEligibility.js';
 import {
   normalizeRequiredLanguages,
@@ -351,6 +352,13 @@ challengesRouter.post('/:challengeId/submissions/:submissionId/like', requireAut
       }
       throw err;
     }
+    void notifySubmissionLike({
+      authorId: submission.userId,
+      actorId: req.user.id,
+      actorName: req.user.name,
+      challengeId: submission.challengeId,
+      submissionId: submission.id,
+    });
     res.json({ liked: true, likeCount: submission.likeCount + 1 });
   } catch (err) {
     sendRouteError(res, err, 'POST .../like', 'Could not update like');
@@ -394,6 +402,14 @@ challengesRouter.post(
           body: req.body.body.trim(),
         },
         include: { user: { select: submissionUserSelect } },
+      });
+      void notifySubmissionComment({
+        authorId: submission.userId,
+        actorId: req.user.id,
+        actorName: req.user.name,
+        challengeId: submission.challengeId,
+        submissionId: submission.id,
+        preview: comment.body,
       });
       res.status(201).json(comment);
     } catch (err) {
