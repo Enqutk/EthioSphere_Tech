@@ -27,6 +27,7 @@ const Challenges = lazy(() => import('@/pages/Challenges'));
 const ChallengeNew = lazy(() => import('@/pages/ChallengeNew'));
 const ChallengeDetail = lazy(() => import('@/pages/ChallengeDetail'));
 const Admin = lazy(() => import('@/pages/Admin'));
+const Notifications = lazy(() => import('@/pages/Notifications'));
 const Privacy = lazy(() => import('@/pages/Privacy'));
 const Terms = lazy(() => import('@/pages/Terms'));
 
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="/profile/:username" element={<Profile />} />
             <Route path="/inbox" element={<Inbox />} />
             <Route path="/inbox/:userId" element={<InboxChat />} />
+            <Route path="/notifications" element={<Notifications />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/new" element={<ProjectNew />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
