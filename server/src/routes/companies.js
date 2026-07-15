@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { sendRouteError } from '../lib/dbErrors.js';
 import { isUniqueConstraintError } from '../lib/prismaErrors.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
+import { notifyCompanyLike } from '../services/notifications.js';
 
 export const companiesRouter = Router();
 
@@ -297,6 +298,12 @@ companiesRouter.post('/:username/like', requireAuth, async (req, res) => {
       }
       throw err;
     }
+    void notifyCompanyLike({
+      ownerId: found.user.id,
+      actorId: req.user.id,
+      actorName: req.user.name,
+      ownerUsername: String(req.params.username).toLowerCase(),
+    });
     const likeCount = await prisma.companyLike.count({ where: { companyId: found.company.id } });
     res.json({ liked: true, likeCount });
   } catch (err) {
