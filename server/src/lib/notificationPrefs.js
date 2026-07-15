@@ -4,6 +4,8 @@ export const DEFAULT_NOTIFICATION_PREFS = {
   emailOnChallenge: true,
   emailOnProjectInvite: true,
   emailOnCommunityReply: true,
+  /** Browser / device push via Firebase (when configured) */
+  pushEnabled: true,
 };
 
 export function normalizeNotificationPrefs(input) {
