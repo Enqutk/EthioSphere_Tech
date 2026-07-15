@@ -12,7 +12,8 @@ import { parsePrimaryDiscipline } from '../lib/disciplines.js';
 import { parseGender, parseDateOfBirth } from '../lib/demographics.js';
 import { getClientOrigin } from '../config/index.js';
 import { createPasswordResetToken, consumePasswordResetToken } from '../lib/passwordReset.js';
-import { sendPasswordResetEmail } from '../lib/email.js';
+import { createEmailVerificationToken, consumeEmailVerificationToken } from '../lib/emailVerification.js';
+import { sendPasswordResetEmail, sendEmailVerificationEmail } from '../lib/email.js';
 import { signedOAuthState, verifySignedOAuthState } from '../lib/oauthState.js';
 import {
   isGoogleOAuthConfigured,
@@ -24,6 +25,9 @@ import {
 
 const FORGOT_PASSWORD_MESSAGE =
   'If an account exists with that email, you will receive password reset instructions shortly.';
+
+const RESEND_VERIFY_MESSAGE =
+  'If an unverified account exists with that email, we sent a new verification link.';
 
 export const authRouter = Router();
 
@@ -41,6 +45,7 @@ function authUserSelect() {
     primaryDiscipline: true,
     googleId: true,
     passwordHash: true,
+    emailVerifiedAt: true,
     company: {
       select: {
         id: true,
@@ -53,12 +58,19 @@ function authUserSelect() {
 }
 
 function publicAuthUser(user) {
-  const { passwordHash, googleId, ...rest } = user;
+  const { passwordHash, googleId, emailVerifiedAt, ...rest } = user;
   return {
     ...rest,
     hasPassword: Boolean(passwordHash),
     googleLinked: Boolean(googleId),
+    emailVerified: Boolean(emailVerifiedAt),
   };
+}
+
+async function issueVerificationEmail(user) {
+  const rawToken = await createEmailVerificationToken(user.id);
+  const verifyUrl = `${getClientOrigin()}/verify-email?token=${encodeURIComponent(rawToken)}`;
+  await sendEmailVerificationEmail({ to: user.email, verifyUrl });
 }
 
 authRouter.get('/google', (req, res) => {
@@ -103,7 +115,11 @@ authRouter.get('/google/callback', async (req, res) => {
     if (user && !user.googleId) {
       user = await prisma.user.update({
         where: { id: user.id },
-        data: { googleId, avatarUrl: user.avatarUrl || profile.picture || null },
+        data: {
+          googleId,
+          avatarUrl: user.avatarUrl || profile.picture || null,
+          emailVerifiedAt: user.emailVerifiedAt || new Date(),
+        },
         select: { ...authUserSelect(), isBanned: true, bannedAt: true, banExpiresAt: true, banReason: true },
       });
     }
@@ -120,7 +136,14 @@ authRouter.get('/google/callback', async (req, res) => {
           accountType: 'DEVELOPER',
           primaryDiscipline: 'DEVELOPER',
           termsAcceptedAt: new Date(),
+          emailVerifiedAt: new Date(),
         },
+        select: { ...authUserSelect(), isBanned: true, bannedAt: true, banExpiresAt: true, banReason: true },
+      });
+    } else if (!user.emailVerifiedAt) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerifiedAt: new Date() },
         select: { ...authUserSelect(), isBanned: true, bannedAt: true, banExpiresAt: true, banReason: true },
       });
     }
@@ -153,6 +176,89 @@ authRouter.post('/logout', (req, res) => {
   clearSessionCookie(res);
   res.json({ ok: true });
 });
+
+authRouter.post(
+  '/verify-email',
+  [body('token').trim().notEmpty().withMessage('Verification token is required')],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+      const userId = await consumeEmailVerificationToken(req.body.token);
+      if (!userId) {
+        return res.status(400).json({
+          error: 'Invalid or expired verification link. Request a new one.',
+        });
+      }
+
+      const user = await prisma.user.update({
+        where: { id: userId },
+        data: { emailVerifiedAt: new Date() },
+        select: {
+          ...authUserSelect(),
+          isBanned: true,
+          bannedAt: true,
+          banExpiresAt: true,
+          banReason: true,
+        },
+      });
+
+      const { user: activeUser, banned } = await resolveActiveBan(user);
+      if (banned) {
+        return res.status(403).json(banStatusPayload(activeUser));
+      }
+
+      setSessionCookie(res, signToken({ userId: activeUser.id }));
+      res.json({
+        ok: true,
+        message: 'Email verified. You are signed in.',
+        user: publicAuthUser(activeUser),
+      });
+    } catch (err) {
+      sendRouteError(res, err, 'POST /api/auth/verify-email', 'Could not verify email');
+    }
+  },
+);
+
+authRouter.post(
+  '/resend-verification',
+  [body('email').isEmail().normalizeEmail()],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+      const user = await prisma.user.findUnique({
+        where: { email: req.body.email },
+        select: {
+          id: true,
+          email: true,
+          emailVerifiedAt: true,
+          passwordHash: true,
+          isBanned: true,
+          bannedAt: true,
+          banExpiresAt: true,
+        },
+      });
+
+      if (user?.passwordHash && !user.emailVerifiedAt) {
+        const { banned } = await resolveActiveBan(user);
+        if (!banned) {
+          try {
+            await issueVerificationEmail(user);
+          } catch (mailErr) {
+            console.error('POST /api/auth/resend-verification email', mailErr);
+          }
+        }
+      }
+
+      res.json({ ok: true, message: RESEND_VERIFY_MESSAGE });
+    } catch (err) {
+      sendRouteError(res, err, 'POST /api/auth/resend-verification', 'Could not resend verification');
+    }
+  },
+);
 
 authRouter.post('/forgot-password', [body('email').isEmail().normalizeEmail()], async (req, res) => {
   try {
@@ -322,6 +428,7 @@ authRouter.post(
           dateOfBirth,
           gender,
           termsAcceptedAt: new Date(),
+          emailVerifiedAt: null,
           ...(accountType === 'COMPANY'
             ? {
                 company: {
@@ -338,26 +445,19 @@ authRouter.post(
           id: true,
           email: true,
           username: true,
-          name: true,
-          rank: true,
-          avatarUrl: true,
-          githubUrl: true,
-          isAdmin: true,
-          accountType: true,
-          primaryDiscipline: true,
-          company: {
-            select: {
-              id: true,
-              legalName: true,
-              website: true,
-              verificationStatus: true,
-            },
-          },
         },
       });
-      setSessionCookie(res, signToken({ userId: user.id }));
+
+      try {
+        await issueVerificationEmail(user);
+      } catch (mailErr) {
+        console.error('POST /api/auth/register verification email', mailErr);
+      }
+
       res.status(201).json({
-        user: { ...user, hasPassword: true, googleLinked: false },
+        needsEmailVerification: true,
+        email: user.email,
+        message: 'Check your email for a verification link to finish signing up.',
         ...(githubNote && { githubNote }),
       });
     } catch (err) {
@@ -395,6 +495,8 @@ authRouter.post(
           banExpiresAt: true,
           banReason: true,
           passwordHash: true,
+          emailVerifiedAt: true,
+          googleId: true,
           company: {
             select: {
               id: true,
@@ -411,6 +513,14 @@ authRouter.post(
       const valid = await bcrypt.compare(password, user.passwordHash);
       if (!valid) {
         return res.status(401).json({ error: 'Invalid email or password' });
+      }
+
+      if (!user.emailVerifiedAt) {
+        return res.status(403).json({
+          error: 'Verify your email before signing in. Check your inbox for the link.',
+          code: 'EMAIL_NOT_VERIFIED',
+          email: user.email,
+        });
       }
 
       const pendingAppeal = await prisma.banAppeal.findFirst({
