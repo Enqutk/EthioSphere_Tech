@@ -1,4 +1,3 @@
-# Traefik static config — HTTP (:80) + HTTPS (:443) with Let's Encrypt
 entryPoints:
   web:
     address: ':80'
@@ -13,8 +12,7 @@ entryPoints:
 certificatesResolvers:
   letsencrypt:
     acme:
-      # Change to your real email on the VPS if you want expiry notices
-      email: admin@aklildr.com
+      # Real email is set via ACME_EMAIL in .env (see docker-compose command)
       storage: /letsencrypt/acme.json
       httpChallenge:
         entryPoint: web
