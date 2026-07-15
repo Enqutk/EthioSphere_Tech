@@ -15,6 +15,7 @@ import {
 import { parsePrimaryDiscipline, normalizeDesignLinks, DISCIPLINE_LABELS } from '../lib/disciplines.js';
 import { normalizeNotificationPrefs } from '../lib/notificationPrefs.js';
 import { normalizeSocialLinks } from '../lib/socialLinks.js';
+import { parseGithubUserLogin } from '../lib/githubPublic.js';
 
 export const usersRouter = Router();
 
@@ -86,8 +87,11 @@ usersRouter.patch(
       .optional({ values: 'falsy' })
       .isString()
       .trim()
-      .isURL({ require_protocol: true, require_valid_protocol: true })
-      .withMessage('Must be a valid URL (include https://)'),
+      .custom((value) => {
+        if (!value) return true;
+        if (parseGithubUserLogin(value)) return true;
+        throw new Error('Must be a GitHub username or https://github.com/username');
+      }),
     body('portfolioUrl')
       .optional({ nullable: true })
       .custom((value) => {
