@@ -1,13 +1,17 @@
-# Programmers World — Traefik with Let's Encrypt HTTPS
-# Needs AWS security group: TCP 80 + TCP 443 open for pw.aklildr.com
+# ACME email comes from .env (gitignored) — copy .env.example → .env on the VPS.
 services:
   traefik:
     image: traefik:v3.3
     container_name: programmers-world-traefik
     restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - '80:80'
       - '443:443'
+    command:
+      - --configFile=/etc/traefik/traefik.yml
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
     volumes:
       - ./traefik.yml:/etc/traefik/traefik.yml:ro
       - ./dynamic.yml:/etc/traefik/dynamic.yml:ro
