@@ -33,6 +33,7 @@ model User {
   banReason     String?     @map("ban_reason") @db.VarChar(500)
   banExpiresAt  DateTime?   @map("ban_expires_at")
   termsAcceptedAt DateTime? @map("terms_accepted_at")
+  emailVerifiedAt DateTime? @map("email_verified_at")
   accountType   AccountType @default(DEVELOPER) @map("account_type")
   primaryDiscipline PrimaryDiscipline @default(DEVELOPER) @map("primary_discipline")
   designLinks   Json?       @map("design_links")
@@ -66,6 +67,7 @@ model User {
   followsIncoming Follow[]        @relation("FollowFollowee")
   projectLikes    ProjectLike[]
   passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
   blocksOutgoing    UserBlock[] @relation("BlocksOutgoing")
   blocksIncoming    UserBlock[] @relation("BlocksIncoming")
   dmMutesOutgoing   DmMute[]    @relation("DmMutesOutgoing")
@@ -204,6 +206,21 @@ model PasswordResetToken {
   @@index([tokenHash])
   @@index([expiresAt])
   @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  tokenHash String   @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
 }
 
 model Company {
