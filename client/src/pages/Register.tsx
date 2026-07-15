@@ -56,7 +56,7 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      const { user, githubNote } = await authApi.register({
+      const result = await authApi.register({
         name,
         username: username.toLowerCase(),
         email,
@@ -76,14 +76,26 @@ export default function Register() {
             }
           : {}),
       });
-      login(user);
-      navigate(accountKind === 'company' ? '/settings#verification' : '/', {
-        state: githubNote
-          ? { banner: githubNote }
-          : accountKind === 'company'
-            ? { banner: 'Company registered — request verification below when ready.' }
-            : undefined,
-      });
+      if (result.needsEmailVerification) {
+        navigate(`/verify-email?email=${encodeURIComponent(result.email || email)}`, {
+          state: {
+            registered: true,
+            githubNote: result.githubNote,
+            message: result.message,
+          },
+        });
+        return;
+      }
+      if (result.user) {
+        login(result.user);
+        navigate(accountKind === 'company' ? '/settings#verification' : '/', {
+          state: result.githubNote
+            ? { banner: result.githubNote }
+            : accountKind === 'company'
+              ? { banner: 'Company registered — request verification below when ready.' }
+              : undefined,
+        });
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
       const data = (err as { errors?: { msg: string }[] })?.errors;
