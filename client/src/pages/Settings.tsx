@@ -7,6 +7,7 @@ import type { NotificationPrefs } from '@/shared/api/users';
 import { authApi } from '@/shared/api/auth';
 import { canApplyForVerification, hasVerificationUnderReview } from '@/shared/constants/verification';
 import { SocialPresenceSettings } from '@/shared/components/settings/SocialPresenceSettings';
+import { enablePushNotifications, isClientFirebaseConfigured } from '@/shared/lib/firebasePush';
 import type { DesignLinks } from '@/shared/constants/disciplines';
 import type { SocialLinks } from '@/shared/constants/socialPlatforms';
 import { GENDER_LABELS, type Gender } from '@/shared/constants/demographics';
@@ -150,6 +151,7 @@ export default function Settings() {
             emailOnChallenge: true,
             emailOnProjectInvite: true,
             emailOnCommunityReply: true,
+            pushEnabled: true,
           },
         );
         if (d.company) {
@@ -440,7 +442,34 @@ export default function Settings() {
 
         {prefs && (
           <SettingsSection title="Notifications">
-            <p className="text-sm text-slate-400">Choose which email notifications you want to receive.</p>
+            <p className="text-sm text-slate-400">
+              In-app alerts show in the bell (live via Socket.io). Email and browser push are optional.
+            </p>
+            <ToggleRow
+              label="Browser push"
+              description="Firebase push when the tab is closed (needs Firebase env keys)"
+              checked={prefs.pushEnabled}
+              onChange={(v) => setPrefs({ ...prefs, pushEnabled: v })}
+            />
+            {isClientFirebaseConfigured() ? (
+              <button
+                type="button"
+                className="btn-secondary text-xs"
+                onClick={async () => {
+                  setMsg('');
+                  setError('');
+                  const out = await enablePushNotifications();
+                  if (out.ok) setMsg('Browser push enabled for this device.');
+                  else setError(out.reason || 'Could not enable push');
+                }}
+              >
+                Enable push on this device
+              </button>
+            ) : (
+              <p className="text-xs text-slate-500">
+                Add VITE_FIREBASE_* keys to client/.env to enable browser push. Live in-app notifications still work.
+              </p>
+            )}
             <ToggleRow
               label="Direct messages"
               description="When someone sends you a message"
