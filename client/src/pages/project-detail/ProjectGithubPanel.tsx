@@ -11,7 +11,7 @@ type Props = {
   githubFullName?: string | null;
   githubHtmlUrl?: string | null;
   gh: GithubDataBundle | null | undefined;
-ls -la  repo: GithubRepoInfo | null | undefined;
+  repo: GithubRepoInfo | null | undefined;
   languages: Record<string, number>;
   hasLanguages: boolean;
 };
