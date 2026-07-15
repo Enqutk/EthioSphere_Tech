@@ -49,6 +49,12 @@ export default function Login() {
       login(nextUser);
       navigate(redirectTo, { replace: true });
     } catch (err: unknown) {
+      if (err instanceof ApiError && err.body.code === 'EMAIL_NOT_VERIFIED') {
+        navigate(`/verify-email?email=${encodeURIComponent(String(err.body.email || email))}`, {
+          state: { needsVerify: true },
+        });
+        return;
+      }
       if (err instanceof ApiError && err.body.code === 'ACCOUNT_BANNED') {
         setBanInfo({
           error: String(err.body.error),
