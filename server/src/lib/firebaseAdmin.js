@@ -5,6 +5,9 @@ let messaging = null;
 let initAttempted = false;
 
 function loadServiceAccount() {
+  if (process.env.FIREBASE_PUSH_ENABLED?.trim().toLowerCase() === 'false') {
+    return null;
+  }
   const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
   if (json) {
     try {
