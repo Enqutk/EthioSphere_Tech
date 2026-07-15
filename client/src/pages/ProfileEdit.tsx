@@ -91,7 +91,7 @@ export default function ProfileEdit() {
         name: name.trim(),
         bio: bio.trim() || undefined,
         primaryDiscipline,
-        githubUrl: githubUrl.trim() || undefined,
+        githubUrl: githubUrl.trim() || null,
         portfolioUrl: portfolioUrl.trim() ? portfolioUrl.trim() : null,
         designLinks,
         skills: skills.split(',').map((s) => s.trim()).filter(Boolean),
@@ -157,8 +157,18 @@ export default function ProfileEdit() {
         </div>
         {(primaryDiscipline === 'DEVELOPER' || primaryDiscipline === 'DEVOPS') && (
           <div>
-            <label htmlFor="githubUrl" className="block text-sm font-medium text-slate-300">GitHub URL</label>
-            <input id="githubUrl" type="url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} className="input mt-1" placeholder="https://github.com/username" />
+            <label htmlFor="githubUrl" className="block text-sm font-medium text-slate-300">GitHub</label>
+            <input
+              id="githubUrl"
+              type="text"
+              value={githubUrl}
+              onChange={(e) => setGithubUrl(e.target.value)}
+              className="input mt-1"
+              placeholder="username or https://github.com/username"
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Changing this refreshes your avatar and rank from GitHub.
+            </p>
           </div>
         )}
         <div>
