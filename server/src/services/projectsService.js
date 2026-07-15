@@ -187,7 +187,7 @@ export async function toggleProjectLike(projectId, userId) {
       memberCount,
       repoStars: repoStarsFromGithubData(gh),
     });
-    return { notFound: false, payload: { liked: false, likeCount, pulseScore } };
+    return { notFound: false, payload: { liked: false, likeCount, pulseScore }, likedNow: false };
   }
 
   try {
@@ -204,7 +204,7 @@ export async function toggleProjectLike(projectId, userId) {
         memberCount,
         repoStars: repoStarsFromGithubData(gh),
       });
-      return { notFound: false, payload: { liked: true, likeCount, pulseScore } };
+      return { notFound: false, payload: { liked: true, likeCount, pulseScore }, likedNow: false };
     }
     throw err;
   }
@@ -216,7 +216,12 @@ export async function toggleProjectLike(projectId, userId) {
     memberCount,
     repoStars: repoStarsFromGithubData(gh),
   });
-  return { notFound: false, payload: { liked: true, likeCount, pulseScore } };
+  return {
+    notFound: false,
+    payload: { liked: true, likeCount, pulseScore },
+    likedNow: true,
+    project: { id: project.id, title: project.title, ownerId: project.ownerId },
+  };
 }
 
 export async function createProjectFromGithub(userId, body) {
