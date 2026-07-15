@@ -18,7 +18,7 @@ export function GoogleSignInButton({ from = '/', className = 'w-full' }: Props) 
   return (
     <a
       href={authApi.googleAuthUrl(from)}
-      className={`inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 bg-surface-900 px-4 py-2.5 font-mono text-xs font-medium uppercase tracking-wide text-slate-200 transition hover:border-slate-500 hover:bg-surface-800 ${className}`}
+      className={`inline-flex items-center justify-center gap-2.5 rounded-md border border-slate-700 bg-surface-900 px-4 py-3 text-sm font-medium text-slate-100 transition hover:border-brand-500/40 hover:bg-surface-800 ${className}`}
     >
       <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden>
         <path
