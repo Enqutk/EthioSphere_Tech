@@ -3,6 +3,7 @@ import { ownedProjectsVisibleWhere } from '../lib/projectAccess.js';
 import { parsePrimaryDiscipline, normalizeDesignLinks } from '../lib/disciplines.js';
 import bcrypt from 'bcryptjs';
 import { normalizeNotificationPrefs } from '../lib/notificationPrefs.js';
+import { parseGithubUserLogin, fetchGithubUser, inferRankFromGithub } from '../lib/githubPublic.js';
 
 export function normalizeProfileSections(input) {
   if (!Array.isArray(input)) return [];
@@ -229,9 +230,47 @@ export async function getPublicProfileByUsername(username, viewerId) {
 }
 
 export async function updateCurrentUserProfile(userId, payload) {
+  const data = { ...payload };
+
+  if (Object.prototype.hasOwnProperty.call(payload, 'githubUrl')) {
+    const raw = typeof payload.githubUrl === 'string' ? payload.githubUrl.trim() : '';
+    if (!raw) {
+      const prev = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { avatarUrl: true },
+      });
+      data.githubUrl = null;
+      if (prev?.avatarUrl && /githubusercontent\.com/i.test(prev.avatarUrl)) {
+        data.avatarUrl = null;
+      }
+    } else {
+      const login = parseGithubUserLogin(raw);
+      if (!login) {
+        const err = new Error(
+          'Invalid GitHub profile. Use a username or https://github.com/yourname',
+        );
+        err.status = 400;
+        throw err;
+      }
+      const gh = await fetchGithubUser(login);
+      if (!gh.ok) {
+        const err = new Error(
+          gh.status === 404
+            ? 'GitHub user not found. Check the username and try again.'
+            : 'Could not verify GitHub user right now. Try again shortly.',
+        );
+        err.status = 400;
+        throw err;
+      }
+      data.githubUrl = gh.data.html_url || `https://github.com/${login}`;
+      data.avatarUrl = gh.data.avatar_url || null;
+      data.rank = inferRankFromGithub(gh.data);
+    }
+  }
+
   return prisma.user.update({
     where: { id: userId },
-    data: payload,
+    data,
     select: {
       id: true,
       name: true,
