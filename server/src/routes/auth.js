@@ -6,6 +6,7 @@ import { sendRouteError } from '../lib/dbErrors.js';
 import { signToken } from '../middleware/auth.js';
 import { setSessionCookie, clearSessionCookie } from '../lib/sessionCookie.js';
 import { parseGithubUserLogin, fetchGithubUser, inferRankFromGithub } from '../lib/githubPublic.js';
+import { assertDeliverableEmail } from '../lib/emailValidation.js';
 import { resolveActiveBan, banStatusPayload } from '../lib/banHelpers.js';
 import { parsePrimaryDiscipline } from '../lib/disciplines.js';
 import { parseGender, parseDateOfBirth } from '../lib/demographics.js';
@@ -220,7 +221,12 @@ authRouter.post(
 authRouter.post(
   '/register',
   [
-    body('email').isEmail().normalizeEmail(),
+    body('email')
+      .trim()
+      .isEmail()
+      .withMessage('Enter a valid email address.')
+      .normalizeEmail()
+      .custom(assertDeliverableEmail),
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
     body('name').trim().notEmpty(),
     body('username').trim().isLength({ min: 2, max: 30 }).matches(/^[a-zA-Z0-9_]+$/).withMessage('Username: letters, numbers, underscore only'),
