@@ -1,9 +1,13 @@
 import 'dotenv/config';
+import http from 'http';
 import { createApp } from './app.js';
 import { config } from './config/index.js';
+import { attachSocketIo } from './realtime/socket.js';
 
 const app = createApp();
+const server = http.createServer(app);
+attachSocketIo(server);
 
-app.listen(config.port, () => {
+server.listen(config.port, () => {
   console.log(`Programmers World API running at http://localhost:${config.port}`);
 });
