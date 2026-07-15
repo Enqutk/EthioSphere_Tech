@@ -43,5 +43,17 @@ jobs:
             npm run build
             pm2 restart programmers-world-api
             pm2 restart programmers-world-web
-            curl -sf http://127.0.0.1:8081/api/health
+            # API needs a moment after restart before health responds
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              if curl -sf http://127.0.0.1:8081/api/health; then
+                echo
+                break
+              fi
+              if [ "$i" -eq 10 ]; then
+                echo "API health check failed after restart"
+                pm2 logs programmers-world-api --lines 40 --nostream || true
+                exit 1
+              fi
+              sleep 2
+            done
             curl -sI http://127.0.0.1:8082 | head -n 1
