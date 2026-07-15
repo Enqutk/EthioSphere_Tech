@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { followApi } from '@/shared/api';
 import { useAuth } from '@/shared/components/AuthProvider';
+import { NotificationBell } from '@/shared/components/NotificationBell';
 
 export function Nav() {
   const location = useLocation();
@@ -114,6 +115,13 @@ export function Nav() {
                 {user ? (
                   <div className="space-y-1">
                     <Link
+                      to="/notifications"
+                      className={linkClass(pathname.startsWith('/notifications'), true)}
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Notifications
+                    </Link>
+                    <Link
                       to="/inbox"
                       className={linkClass(pathname.startsWith('/inbox'), true)}
                       onClick={() => setMenuOpen(false)}
@@ -196,6 +204,7 @@ export function Nav() {
             {ready &&
               (user ? (
                 <>
+                  <NotificationBell />
                   <Link to="/inbox" className={linkClass(pathname.startsWith('/inbox'))}>
                     {inboxLabel}
                   </Link>
