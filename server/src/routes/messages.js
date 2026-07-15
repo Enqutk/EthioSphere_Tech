@@ -3,6 +3,9 @@ import { body, validationResult } from 'express-validator';
 import { prisma } from '../lib/prisma.js';
 import { sendRouteError } from '../lib/dbErrors.js';
 import { requireAuth } from '../middleware/auth.js';
+import {
+  notifyMessage,
+} from '../services/notifications.js';
 import { getOrCreateDmThread } from '../lib/dmThread.js';
 import {
   assertCanSendDm,
@@ -288,6 +291,13 @@ messagesRouter.post(
       await prisma.dmThread.update({
         where: { id: thread.id },
         data: { updatedAt: new Date() },
+      });
+      void notifyMessage({
+        recipientId: otherId,
+        actorId: me,
+        actorName: req.user.name,
+        threadPeerId: me,
+        preview: msg.body,
       });
       res.status(201).json(msg);
     } catch (err) {
