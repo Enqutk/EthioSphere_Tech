@@ -1,4 +1,4 @@
-# Routes https://pw.aklildr.com → API :8081 and frontend :8082 on the host
+
 http:
   routers:
     api:
