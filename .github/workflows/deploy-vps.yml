@@ -30,7 +30,10 @@ jobs:
               exit 1
             fi
             cd "$APP_DIR"
-            git pull origin main
+            git fetch origin main
+            # Drop local untracked junk that blocks pull (keeps gitignored .env files)
+            git reset --hard origin/main
+            git clean -fd
             cd server
             npm ci
             npm run build
