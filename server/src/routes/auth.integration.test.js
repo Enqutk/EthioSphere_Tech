@@ -82,6 +82,7 @@ describe('POST /api/auth with database', { skip: !hasDatabaseUrl() }, () => {
         name: 'PW Test User',
         username,
         termsAcceptedAt: new Date(),
+        emailVerifiedAt: new Date(),
         dateOfBirth: new Date('2000-01-01'),
         gender: 'PREFER_NOT_TO_SAY',
       },
@@ -189,7 +190,7 @@ describe('POST /api/auth with database', { skip: !hasDatabaseUrl() }, () => {
     });
   });
 
-  test('register creates account and session cookie', async () => {
+  test('register requires email verification before session', async () => {
     const payload = validRegisterBody();
     const { status, body, headers } = await requestJson(server.baseUrl, '/api/auth/register', {
       method: 'POST',
@@ -197,11 +198,18 @@ describe('POST /api/auth with database', { skip: !hasDatabaseUrl() }, () => {
     });
 
     assert.equal(status, 201);
-    assert.equal(body.user.email, payload.email);
-    assert.equal(body.user.username, payload.username.toLowerCase());
+    assert.equal(body.needsEmailVerification, true);
+    assert.equal(body.email, payload.email);
     const cookie = parseSetCookie(headers.getSetCookie?.() || headers.get('set-cookie'));
-    assert.equal(cookie?.name, SESSION_COOKIE_NAME);
+    assert.equal(cookie, null);
 
+    const created = await prisma.user.findUnique({ where: { email: payload.email } });
+    assert.ok(created);
+    assert.equal(created.emailVerifiedAt, null);
+    const token = await prisma.emailVerificationToken.findFirst({ where: { userId: created.id } });
+    assert.ok(token);
+
+    await prisma.emailVerificationToken.deleteMany({ where: { userId: created.id } });
     await prisma.user.delete({ where: { email: payload.email } }).catch(() => {});
   });
 
