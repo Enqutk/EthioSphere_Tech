@@ -14,4 +14,6 @@ export { adminApi } from './admin';
 export { postsApi } from './posts';
 export { companiesApi } from './companies';
 export { reportsApi } from './reports';
+export { notificationsApi } from './notifications';
+export type { AppNotification, NotificationActor } from './notifications';
 export type { CompanyProfile } from './companies';
