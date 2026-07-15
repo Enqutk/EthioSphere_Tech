@@ -27,7 +27,25 @@ export const authApi = {
     dateOfBirth: string;
     gender: string;
   }) =>
-    api<{ user: User; githubNote?: string }>('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
+    api<{
+      user?: User;
+      needsEmailVerification?: boolean;
+      email?: string;
+      message?: string;
+      githubNote?: string;
+    }>('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
+
+  verifyEmail: (body: { token: string }) =>
+    api<{ ok: boolean; message: string; user: User }>('/api/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  resendVerification: (body: { email: string }) =>
+    api<{ ok: boolean; message: string }>('/api/auth/resend-verification', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 
   login: async (body: { email: string; password: string }) => {
     try {
