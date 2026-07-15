@@ -6,6 +6,7 @@ import { parseListPagination } from '../lib/pagination.js';
 import { viewerKeyFromRequest } from '../lib/viewerKey.js';
 import { postPulseScore } from '../lib/pulseScore.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
+import { notifyPostComment } from '../services/notifications.js';
 import { parseGithubRepo, verifyPublicGithubRepo } from '../lib/githubPublic.js';
 import { canViewProject } from '../lib/projectAccess.js';
 import {
@@ -156,6 +157,32 @@ postsRouter.post(
       });
       if (req.body.isSolution) {
         await prisma.post.update({ where: { id: req.params.id }, data: { solved: true } });
+      }
+      const parentId = req.body.parentId || null;
+      if (parentId) {
+        const parent = await prisma.comment.findUnique({
+          where: { id: parentId },
+          select: { authorId: true },
+        });
+        if (parent?.authorId) {
+          void notifyPostComment({
+            recipientId: parent.authorId,
+            actorId: req.user.id,
+            actorName: req.user.name,
+            postId: req.params.id,
+            preview: comment.body,
+            isReply: true,
+          });
+        }
+      } else if (post.authorId) {
+        void notifyPostComment({
+          recipientId: post.authorId,
+          actorId: req.user.id,
+          actorName: req.user.name,
+          postId: req.params.id,
+          preview: comment.body,
+          isReply: false,
+        });
       }
       res.status(201).json(comment);
     } catch (err) {
