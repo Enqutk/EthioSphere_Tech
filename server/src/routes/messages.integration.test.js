@@ -3,11 +3,10 @@ import assert from 'node:assert/strict';
 import { createApp } from '../app.js';
 import {
   hasDatabaseUrl,
-  parseSetCookie,
+  registerAndGetSession,
   requestJson,
   sessionAuthHeaders,
   startTestServer,
-  validRegisterBody,
 } from '../test/httpHelpers.js';
 
 let server;
@@ -22,19 +21,14 @@ after(async () => {
 });
 
 async function registerUser(label) {
-  const body = validRegisterBody({
+  const { status, token, user } = await registerAndGetSession(server.baseUrl, {
     email: `${label}-${Date.now()}@example.com`,
     username: `${label}${Date.now()}`,
     name: `${label} User`,
   });
-  const { status, body: resBody, headers } = await requestJson(server.baseUrl, '/api/auth/register', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
-  assert.equal(status, 201);
-  const cookie = parseSetCookie(headers.getSetCookie?.() || headers.get('set-cookie'));
-  assert.ok(cookie?.value);
-  return { token: cookie.value, user: resBody.user };
+  assert.equal(status, 200);
+  assert.ok(token);
+  return { token, user };
 }
 
 describe('DM block and mute', { skip: !hasDatabaseUrl() }, () => {

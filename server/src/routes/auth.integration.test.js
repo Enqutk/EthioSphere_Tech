@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import bcrypt from 'bcryptjs';
 import { createApp } from '../app.js';
 import { prisma } from '../lib/prisma.js';
-import { hasDatabaseUrl, startTestServer, requestJson, parseSetCookie, validRegisterBody } from '../test/httpHelpers.js';
+import { hasDatabaseUrl, startTestServer, requestJson, parseSetCookie, setCookieFromHeaders, validRegisterBody } from '../test/httpHelpers.js';
 import { SESSION_COOKIE_NAME } from '../lib/sessionCookie.js';
 import { hashResetToken } from '../lib/passwordReset.js';
 
@@ -105,7 +105,7 @@ describe('POST /api/auth with database', { skip: !hasDatabaseUrl() }, () => {
 
     assert.equal(status, 200);
     assert.equal(body.user.email, email);
-    const cookie = parseSetCookie(headers.getSetCookie?.() || headers.get('set-cookie'));
+    const cookie = parseSetCookie(setCookieFromHeaders(headers));
     assert.ok(cookie);
     assert.equal(cookie.name, SESSION_COOKIE_NAME);
     assert.ok(cookie.value);
@@ -200,7 +200,7 @@ describe('POST /api/auth with database', { skip: !hasDatabaseUrl() }, () => {
     assert.equal(status, 201);
     assert.equal(body.needsEmailVerification, true);
     assert.equal(body.email, payload.email);
-    const cookie = parseSetCookie(headers.getSetCookie?.() || headers.get('set-cookie'));
+    const cookie = parseSetCookie(setCookieFromHeaders(headers));
     assert.equal(cookie, null);
 
     const created = await prisma.user.findUnique({ where: { email: payload.email } });
