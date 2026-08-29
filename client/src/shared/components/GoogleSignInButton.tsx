@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { authApi } from '@/shared/api/auth';
+import { AuthDivider } from '@/shared/components/AuthShell';
 
 type Props = {
   from?: string;
@@ -16,10 +17,12 @@ export function GoogleSignInButton({ from = '/', className = 'w-full' }: Props) 
   if (!enabled) return null;
 
   return (
-    <a
-      href={authApi.googleAuthUrl(from)}
-      className={`inline-flex items-center justify-center gap-2.5 rounded-md border border-slate-700 bg-surface-900 px-4 py-3 text-sm font-medium text-slate-100 transition hover:border-brand-500/40 hover:bg-surface-800 ${className}`}
-    >
+    <>
+      <AuthDivider />
+      <a
+        href={authApi.googleAuthUrl(from)}
+        className={`inline-flex items-center justify-center gap-2.5 rounded-md border border-slate-700 bg-surface-900 px-4 py-3 text-sm font-medium text-slate-100 transition hover:border-brand-500/40 hover:bg-surface-800 ${className}`}
+      >
       <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden>
         <path
           fill="#4285F4"
@@ -39,6 +42,7 @@ export function GoogleSignInButton({ from = '/', className = 'w-full' }: Props) 
         />
       </svg>
       Continue with Google
-    </a>
+      </a>
+    </>
   );
 }

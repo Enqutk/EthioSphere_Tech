@@ -49,6 +49,8 @@ function firebaseMessagingSwPlugin() {
 }
 export default defineConfig(function (_a) {
     var mode = _a.mode;
+    var env = loadEnv(mode, __dirname, '');
+    var apiTarget = env.VITE_API_BASE_URL || env.VITE_API_URL || process.env.VITE_API_URL || 'http://localhost:4000';
     return ({
         plugins: [react(), firebaseMessagingSwPlugin()],
         resolve: {
@@ -58,7 +60,7 @@ export default defineConfig(function (_a) {
             port: 3000,
             proxy: {
                 '/api': {
-                    target: process.env.VITE_API_URL || 'http://localhost:4000',
+                    target: apiTarget,
                     changeOrigin: true,
                     proxyTimeout: 25000,
                     configure: function (proxy) {
@@ -70,7 +72,7 @@ export default defineConfig(function (_a) {
                     },
                 },
                 '/socket.io': {
-                    target: process.env.VITE_API_URL || 'http://localhost:4000',
+                    target: apiTarget,
                     changeOrigin: true,
                     ws: true,
                 },

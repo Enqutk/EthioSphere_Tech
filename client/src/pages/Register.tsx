@@ -4,7 +4,7 @@ import { useAuth } from '@/shared/components/AuthProvider';
 import { authApi } from '@/shared/api';
 import { DISCIPLINE_LABELS, parseDisciplineSlug } from '@/shared/constants/disciplines';
 import { GoogleSignInButton } from '@/shared/components/GoogleSignInButton';
-import { AuthDivider, AuthFieldLabel, AuthShell } from '@/shared/components/AuthShell';
+import { AuthFieldLabel, AuthShell } from '@/shared/components/AuthShell';
 import {
   GENDER_OPTIONS,
   maxDateOfBirthForRegister,
@@ -367,12 +367,7 @@ export default function Register() {
         </button>
       </form>
 
-      {accountKind === 'developer' && (
-        <>
-          <AuthDivider />
-          <GoogleSignInButton from="/" />
-        </>
-      )}
+      {accountKind === 'developer' && <GoogleSignInButton from="/" />}
     </AuthShell>
   );
 }

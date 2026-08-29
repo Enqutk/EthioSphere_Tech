@@ -4,7 +4,7 @@ import { useAuth } from '@/shared/components/AuthProvider';
 import { authApi, type BanInfo } from '@/shared/api/auth';
 import { ApiError } from '@/shared/api/http';
 import { GoogleSignInButton } from '@/shared/components/GoogleSignInButton';
-import { AuthDivider, AuthFieldLabel, AuthShell } from '@/shared/components/AuthShell';
+import { AuthFieldLabel, AuthShell } from '@/shared/components/AuthShell';
 import { usePageMeta } from '@/shared/hooks/usePageMeta';
 
 function formatBanDate(iso: string | null | undefined) {
@@ -302,7 +302,6 @@ export default function Login() {
         </button>
       </form>
 
-      <AuthDivider />
       <GoogleSignInButton from={redirectTo} />
     </AuthShell>
   );

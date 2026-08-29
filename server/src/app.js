@@ -39,10 +39,20 @@ export function createApp() {
   if (process.env.NODE_ENV !== 'test') {
     const authLimiter = rateLimit({
       windowMs: 15 * 60 * 1000,
-      max: 10,
+      max: 30,
       standardHeaders: true,
       legacyHeaders: false,
       message: { error: 'Too many auth attempts, please try again later.' },
+      // Status/OAuth GETs run on every login page load and must not hide Google sign-in.
+      skip: (req) => {
+        if (req.method !== 'GET') return false;
+        const path = String(req.originalUrl || req.url || '').split('?')[0];
+        return (
+          path === '/api/auth/google/status' ||
+          path === '/api/auth/google' ||
+          path.startsWith('/api/auth/google/callback')
+        );
+      },
       ...rateLimitOpts,
     });
 
